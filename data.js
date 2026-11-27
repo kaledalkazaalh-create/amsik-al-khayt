@@ -3,6 +3,7 @@
 globalThis.ThreadData = {
   "title": "أمسك الخيط",
   "institution": "قسم التسويق · الجامعة الهاشمية",
+  "cardInstitution": "كلية الأعمال · الجامعة الهاشمية",
   "fields": [
     {
       "id": "analytics",

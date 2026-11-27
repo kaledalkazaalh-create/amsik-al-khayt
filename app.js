@@ -1,7 +1,7 @@
 "use strict";
 
 (() => {
-  const {fields, answers, title, institution, copy} = ThreadData;
+  const {fields, answers, title, institution, cardInstitution, copy} = ThreadData;
   const {items, byId, order, validOrder, validRating, score} = ThreadScoring;
   const game = document.querySelector("#game");
   const announcement = document.querySelector("#announcement");
@@ -349,8 +349,7 @@
     wash.addColorStop(1,"#331120");
     rect(0,0,1080,1920,0,wash);
     rect(36,36,1008,1848,41,"#ffffff00","#a67c64");
-    line(institution,984,130,34,cream);
-    line(title,988,264,112,cream,"bold");
+    line(title,988,251,112,cream,"bold");
     path([[100,294],[980,294]],"#b9876e",2);
     ThreadArt.sparkle(ctx,132,210,24,gold);
     ctx.save();
@@ -378,13 +377,7 @@
     ThreadArt.sparkle(ctx,147,1559,12,wine);
     line(copy.notes,971,1728,34,cream);
     path([[100,1772],[980,1772]],"#b9876e",2);
-
-    if (location.protocol === "https:" || location.protocol === "http:") {
-      ctx.direction = "ltr";
-      ctx.textAlign = "left";
-      ctx.font = "25px Arial";
-      ctx.fillText(new URL("play.html",location.href).href,101,1827,870);
-    }
+    line(cardInstitution,971,1832,39,gold,"bold");
     return canvas;
   }
 
