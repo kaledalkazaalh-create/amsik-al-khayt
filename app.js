@@ -1,463 +1,407 @@
 "use strict";
 
 (() => {
-  const {copy, title, hashtag, institution, items, types, answers, settings, palette, links} = GameData;
-  const scoring = GameScoring;
-  const itemById = new Map(items.map(item => [item.id, item]));
-  const app = document.querySelector("#app");
+  const {fields, answers, title, institution, copy} = ThreadData;
+  const {items, byId, order, validOrder, validRating, score} = ThreadScoring;
+  const game = document.querySelector("#game");
   const announcement = document.querySelector("#announcement");
-  const numerals = new Intl.NumberFormat("ar-JO");
-  const percentage = new Intl.NumberFormat("ar-JO", {style:"percent", maximumFractionDigits:0});
-  const motion = matchMedia("(prefers-reduced-motion: reduce)");
-  const storageKey = "amsik-al-khayt:v1";
-  let state = restore();
-  let pending = false;
-  let cardUrl;
+  const numbers = new Intl.NumberFormat("ar-JO", {maximumFractionDigits:1});
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const key = "amsik-al-khayt:fields:v1";
+  const ns = "http://www.w3.org/2000/svg";
+  let session = restore();
+  let advancing = false;
+  let shareUrl;
 
-  document.title = title;
-  document.querySelector("[data-title]").textContent = title;
+  document.querySelector("[data-name]").textContent = title;
   document.querySelector("[data-institution]").textContent = institution;
 
-  function element(tag, className, value) {
+  function node(tag, cls, value) {
     const el = document.createElement(tag);
-    if (className) el.className = className;
+    if (cls) el.className = cls;
     if (value !== undefined) el.textContent = value;
     return el;
   }
 
-  function button(label, className, activate) {
-    const el = element("button", className, label);
+  function button(text, cls, handler) {
+    const el = node("button", cls, text);
     el.type = "button";
-    el.addEventListener("click", activate);
+    el.addEventListener("click",handler);
     return el;
   }
 
-  function external(label, url) {
-    const el = element("a", "", label);
-    el.href = url;
-    el.target = "_blank";
-    el.rel = "noopener noreferrer";
+  function svg(tag, props) {
+    const el = document.createElementNS(ns, tag);
+    Object.entries(props).forEach(([name,value]) => el.setAttribute(name,value));
     return el;
   }
 
-  function focus(el) {
-    el.tabIndex = -1;
-    el.focus({preventScroll:true});
+  function ink(field) {
+    const icon = svg("svg", {viewBox:"0 0 36 36",fill:"none","aria-hidden":"true"});
+    icon.append(svg("path", {d:field.icon,stroke:"currentColor","stroke-width":"1.8","stroke-linecap":"round","stroke-linejoin":"round"}));
+    return icon;
   }
 
-  function show(screen, heading) {
-    app.replaceChildren(screen);
-    window.scrollTo(0, 0);
-    if (heading) focus(heading);
+  function threadPath(i) {
+    const y = 40 + 30*i;
+    return `M-18 ${y} C65 ${y-31} 127 ${y+42} 186 132 C235 87 253 ${238-i*28} 316 ${238-i*28} S389 ${220-i*28} 456 ${187-i*20}`;
+  }
+
+  function threads(cls) {
+    const art = svg("svg", {viewBox:"0 0 440 270",class:cls,fill:"none","aria-hidden":"true"});
+    art.append(svg("circle",{cx:186,cy:132,r:63,stroke:"currentColor","stroke-dasharray":"1 7",opacity:".28"}));
+    art.append(svg("circle",{cx:186,cy:132,r:89,stroke:"currentColor","stroke-dasharray":"1 9",opacity:".18"}));
+    fields.forEach((field, i) => {
+      const path = svg("path", {d:threadPath(i),stroke:field.tint,"stroke-width":"2.1","stroke-linecap":"round",pathLength:"100"});
+      path.style.setProperty("--strand",i);
+      art.append(path);
+    });
+    art.append(svg("circle",{cx:186,cy:132,r:7,fill:"#f0e5d1",stroke:"#48020c","stroke-width":"2.7",class:"knot"}));
+    return art;
   }
 
   function restore() {
     try {
-      const saved = JSON.parse(localStorage.getItem(storageKey));
-      if (!saved || !scoring.validOrder(saved.order) || !Array.isArray(saved.responses)) return null;
-      if (saved.responses.length > items.length || !saved.responses.every(scoring.validResponse)) return null;
-      if (!Number.isInteger(saved.cursor) || saved.cursor < 0 || saved.cursor > saved.responses.length) return null;
-      return saved;
+      const saved = JSON.parse(localStorage.getItem(key));
+      if (saved && validOrder(saved.ids) && Array.isArray(saved.ratings) &&
+          saved.ratings.length <= items.length && saved.ratings.every(validRating) &&
+          Number.isInteger(saved.index) && saved.index >= 0 && saved.index <= saved.ratings.length) return saved;
     } catch {
-      return null;
+      // The game remains usable in browsers that restrict local storage.
     }
+    return null;
   }
 
-  function save() {
+  function persist() {
     try {
-      if (state) localStorage.setItem(storageKey, JSON.stringify(state));
-      else localStorage.removeItem(storageKey);
+      if (session) localStorage.setItem(key,JSON.stringify(session));
+      else localStorage.removeItem(key);
     } catch {
-      // A storage restriction only affects resuming after reload.
+      // Resume is optional when storage is unavailable.
     }
   }
 
-  function welcome() {
-    const screen = element("section", "welcome enter");
-    const intro = element("div", "hero-copy");
-    intro.append(element("p", "eyebrow", copy.welcomeTag), element("h1", "", title),
-      element("h2", "", copy.welcomeLead), element("p", "", copy.welcomeBody));
-    const actions = element("div", "hero-actions");
-    const completed = state?.cursor === items.length;
-    const actionLabel = completed ? copy.pastResult : state?.responses.length ? copy.resume : copy.start;
-    actions.append(button(actionLabel, "action", () => {
-      if (!state) {
-        state = {order: scoring.makeOrder(), cursor: 0, responses: []};
-        save();
-      }
-      if (state.cursor === items.length) result();
-      else question();
-    }), element("p", "duration", copy.duration));
-    screen.append(intro, actions);
-    show(screen);
+  function show(screen, heading, focus = true) {
+    game.replaceChildren(screen);
+    scrollTo(0,0);
+    if (focus) {
+      heading.tabIndex = -1;
+      heading.focus({preventScroll:true});
+    }
   }
 
-  function question() {
-    const {cursor, order, responses} = state;
-    const item = itemById.get(order[cursor]);
-    const screen = element("section", "quiz enter");
-    const meta = element("div", "quiz-meta");
-    const count = numerals.format(cursor + 1);
-    const max = numerals.format(items.length);
-    meta.append(element("span", "", `${copy.activity} ${count} / ${max}`));
-    const progress = element("div", "progress");
-    progress.setAttribute("role","progressbar");
-    progress.setAttribute("aria-label",copy.progress);
-    progress.setAttribute("aria-valuemin","0");
-    progress.setAttribute("aria-valuemax",String(items.length));
-    progress.setAttribute("aria-valuenow",String(cursor));
-    const unit = items.length / types.length;
-    types.forEach(({color}, i) => {
-      const segment = element("span");
-      segment.setAttribute("aria-hidden", "true");
-      const fill = Math.max(0, Math.min(1, (cursor - i * unit) / unit));
-      segment.style.setProperty("--fill", `${100 * fill}%`);
-      segment.style.setProperty("--segment", color);
-      segment.append(element("i"));
-      progress.append(segment);
+  function reset() {
+    if (!confirm(copy.confirm)) return;
+    if (shareUrl) URL.revokeObjectURL(shareUrl);
+    shareUrl = undefined;
+    session = null;
+    persist();
+    welcome(true);
+  }
+
+  function welcome(focus = false) {
+    const screen = node("section","welcome");
+    const lead = node("div","welcome-lead");
+    const heading = node("h1","",title);
+    lead.append(heading,node("p","hook",copy.hook),node("p","welcome-body",copy.intro));
+    const visual = node("div","welcome-visual");
+    visual.append(threads("hero-threads"));
+    const actions = node("div","welcome-actions");
+    let action = copy.start;
+    if (session?.index === items.length) action = copy.reopen;
+    else if (session?.ratings.length) action = copy.resume;
+    actions.append(button(action,"button button-light",() => {
+      if (!session) {
+        session = {ids:order(),ratings:[],index:0};
+        persist();
+      }
+      if (session.index === items.length) showResult();
+      else quiz();
+    }));
+    actions.append(node("p","duration",`${numbers.format(items.length)} نشاطًا قصيرًا`));
+    if (session?.ratings.length) actions.append(button(copy.restart,"text-button light-link",reset));
+    screen.append(lead,visual,actions);
+    show(screen,heading,focus);
+  }
+
+  function progress(index) {
+    const bar = node("div","progress");
+    bar.setAttribute("role","progressbar");
+    bar.setAttribute("aria-label",copy.progress);
+    bar.setAttribute("aria-valuemin","0");
+    bar.setAttribute("aria-valuemax",items.length);
+    bar.setAttribute("aria-valuenow",index);
+    const width = items.length / fields.length;
+    fields.forEach((field,i) => {
+      const segment = node("span","segment");
+      const filled = node("i");
+      filled.style.setProperty("--filled",Math.max(0,Math.min(1,(index-i*width)/width))*100+"%");
+      filled.style.setProperty("--color",field.color);
+      segment.append(filled);
+      bar.append(segment);
     });
-    const hintText = settings.encouragement[cursor] ?? "";
-    const hint = element("p", "hint", hintText);
-    const panel = element("div", "question-panel");
-    const heading = element("h1", "", item.text);
+    return bar;
+  }
+
+  function quiz(backward = false) {
+    const {index,ids,ratings} = session;
+    const count = `${copy.activity} ${numbers.format(index+1)} من ${numbers.format(items.length)}`;
+    const milestone = copy.milestones[index];
+    const screen = node("section","quiz");
+    const meta = node("div","quiz-meta");
+    meta.append(node("p","",count));
+    if (milestone) meta.append(node("p","milestone",milestone));
+    const moving = node("div",backward ? "question move-back" : "question move-next");
+    const panel = node("div","question-panel");
+    const heading = node("h1","",byId.get(ids[index]).text);
     heading.id = "activity-title";
-    const prompt = element("p", "", copy.question);
+    heading.setAttribute("aria-describedby","activity-prompt");
+    const prompt = node("p","",copy.prompt);
     prompt.id = "activity-prompt";
-    heading.setAttribute("aria-describedby", prompt.id);
-    panel.append(heading, prompt);
-
-    const options = element("div", "answers");
-    options.setAttribute("role", "group");
-    options.setAttribute("aria-labelledby", heading.id);
-    answers.forEach((label, index) => {
-      const value = index + 1;
-      const choice = button(label, "answer", () => choose(value, choice, options, back));
-      choice.setAttribute("aria-pressed", String(responses[cursor] === value));
-      const marker = element("span", "answer-marker");
-      marker.setAttribute("aria-hidden","true");
-      for (let i = 0; i < answers.length; i++) marker.append(element("i", i < value ? "filled" : ""));
-      choice.append(marker);
-      options.append(choice);
-    });
-    const back = button(copy.back, "back", () => {
-      if (pending) return;
-      if (state.cursor === 0) {
-        welcome();
+    panel.append(heading,prompt);
+    const choices = node("div","choices");
+    choices.setAttribute("role","group");
+    choices.setAttribute("aria-labelledby",heading.id);
+    const back = button(copy.back,"text-button back",() => {
+      if (advancing) return;
+      if (session.index === 0) {
+        welcome(true);
         return;
       }
-      state.cursor--;
-      save();
-      question();
+      session.index--;
+      persist();
+      quiz(true);
     });
-    screen.append(meta, progress, hint, panel, options, back);
-    show(screen, heading);
-    announcement.textContent = `${copy.activity} ${count} / ${max}. ${hintText}`;
+    back.prepend(node("span","back-arrow","→"));
+    back.firstChild.setAttribute("aria-hidden","true");
+    answers.forEach((text,i) => {
+      const choice = button(text,"answer",() => select(i+1,choices,back));
+      choice.setAttribute("aria-pressed",String(ratings[index] === i+1));
+      const dots = node("span","answer-dots");
+      dots.setAttribute("aria-hidden","true");
+      for (let n=0;n<answers.length;n++) dots.append(node("i",n<=i ? "dot filled" : "dot"));
+      choice.append(dots);
+      choices.append(choice);
+    });
+    moving.append(panel,choices);
+    screen.append(progress(index),meta,moving,back);
+    show(screen,heading);
+    announcement.textContent = milestone ? `${count}. ${milestone}` : count;
   }
 
-  function choose(value, choice, options, back) {
-    if (pending) return;
-    pending = true;
-    for (const option of options.children) {
-      option.setAttribute("aria-pressed", String(option === choice));
-      option.disabled = true;
-    }
+  function select(value, choices, back) {
+    if (advancing) return;
+    advancing = true;
+    [...choices.children].forEach((child,i) => {
+      child.setAttribute("aria-pressed",String(i+1 === value));
+      child.disabled = true;
+    });
     back.disabled = true;
-    state.responses[state.cursor] = value;
-    state.cursor++;
-    save();
-    window.setTimeout(() => {
-      pending = false;
-      if (state.cursor === items.length) {
-        const reveal = element("div", "reveal enter", copy.reveal);
-        reveal.setAttribute("role", "status");
-        show(reveal);
-        window.setTimeout(result, motion.matches ? 0 : 440);
-        return;
-      }
-      question();
-    }, motion.matches ? 0 : 145);
+    session.ratings[session.index] = value;
+    session.index++;
+    persist();
+    setTimeout(() => {
+      advancing = false;
+      if (session.index === items.length) reveal();
+      else quiz();
+    },reduced.matches ? 0 : 135);
   }
 
-  function list(tag, values) {
-    const el = element(tag);
-    for (const value of values) {
-      const li = element("li");
-      li.append(value);
-      el.append(li);
+  function reveal() {
+    if (reduced.matches) {
+      showResult();
+      return;
     }
-    return el;
+    const screen = node("section","reveal");
+    const heading = node("h1","",copy.reveal);
+    screen.append(threads("reveal-threads"),heading);
+    show(screen,heading);
+    setTimeout(showResult,1850);
   }
 
-  function trackCard(track, {showPercent = false, feature = false, label = ""} = {}) {
-    const card = element("article", feature ? "track featured" : "track");
-    const title = element("h2", "", track.title);
-    if (showPercent) {
-      const ratio = element("bdi", "track-match", percentage.format(track.percent / 100));
-      title.append(" · ", ratio);
+  function card(field) {
+    const article = node("article","field-card");
+    article.style.setProperty("--field",field.color);
+    article.style.setProperty("--tint",field.tint);
+    const banner = node("header","field-banner");
+    const identity = node("div","field-identity");
+    identity.append(node("h2","",field.name));
+    const illustration = node("div","field-illustration");
+    illustration.append(ink(field));
+    banner.append(identity,illustration);
+    const detail = node("div","field-detail");
+    detail.append(node("p","field-why",field.why));
+    if (field.reasons.length) {
+      const reason = node("div","field-reason");
+      reason.append(node("h3","",copy.reason));
+      const list = node("ul");
+      field.reasons.forEach(item => list.append(node("li","",item.text)));
+      reason.append(list);
+      detail.append(reason);
     }
-    if (label) card.append(element("p", "track-label", label));
-    card.append(title, element("p", "", track.description));
-
-    const firstSteps = list("ol", track.steps.map(([text, url]) => url ? external(text, url) : text));
-    const details = element("details");
-    if (feature) {
-      card.append(element("h3", "step-heading", copy.steps), firstSteps);
-      details.append(element("summary", "", copy.workDetails));
-    } else {
-      details.append(element("summary", "", copy.steps), firstSteps);
-    }
-    details.append(element("h3", "", copy.tasks), list("ul", track.tasks),
-      element("h3", "", copy.skills), element("p", "", track.skills.join("، ")));
-    card.append(details);
-    return card;
+    const step = node("section","week-step");
+    step.append(node("h3","",copy.step),node("p","",field.step));
+    const extra = node("details","field-extra");
+    extra.append(node("summary","",copy.work),node("p","",field.example),node("h3","",copy.skills),node("p","",field.skills));
+    detail.append(step,extra);
+    article.append(banner,detail);
+    return article;
   }
 
-  function chart(profile) {
-    const size = 480;
-    const canvas = element("canvas", "chart");
-    canvas.width = size;
-    canvas.height = 455;
-    const context = canvas.getContext("2d");
-    canvas.setAttribute("role", "img");
-    const scores = profile.map(type => `${type.title} ${numerals.format(type.total)}`);
-    canvas.setAttribute("aria-label", `${copy.chart}. ${scores.join("، ")}. ${copy.chartScale}.`);
-    const cx = size / 2;
-    const cy = canvas.height / 2;
-    const radius = 164;
-    const angle = index => index * (Math.PI / 3) - Math.PI / 2;
-    const x = (scale, index) => cx + radius * scale * Math.cos(angle(index));
-    const y = (scale, index) => cy + radius * scale * Math.sin(angle(index));
-    function polygon(scales) {
-      context.beginPath();
-      scales.forEach((scale, index) => {
-        if (index === 0) context.moveTo(x(scale,index),y(scale,index));
-        else context.lineTo(x(scale,index),y(scale,index));
-      });
-      context.closePath();
-    }
-    context.strokeStyle = "#8c7368";
-    context.lineWidth = 2;
-    for (const ring of [.25,.5,.75,1]) {
-      polygon(profile.map(() => ring));
-      context.stroke();
-    }
-    profile.forEach((type, index) => {
-      context.beginPath();
-      context.moveTo(cx, cy);
-      context.lineTo(x(1,index),y(1,index));
-      context.stroke();
-      context.font = "bold 30px Georgia";
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-      context.fillStyle = type.color;
-      context.fillText(type.key, x(1.19,index), y(1.19,index));
+  function chart(scores) {
+    const section = node("section","chart-section");
+    section.append(node("h2","",copy.chart),node("p","muted",copy.chartHint));
+    const list = node("ul","chart");
+    scores.forEach(field => {
+      const row = node("li","chart-row");
+      row.style.setProperty("--field",field.color);
+      row.style.setProperty("--tint",field.tint);
+      const name = node("span","chart-name");
+      name.append(ink(field),node("span","",field.name));
+      const line = node("div","chart-line");
+      line.setAttribute("aria-hidden","true");
+      const value = node("i");
+      value.style.setProperty("--filled",100*field.average/answers.length+"%");
+      line.append(value);
+      row.append(name,line,node("span","sr-only",`${numbers.format(field.average)} من ${numbers.format(answers.length)}`));
+      list.append(row);
     });
-    const scales = profile.map(type => (type.total - scoring.lower) / (scoring.upper - scoring.lower));
-    polygon(scales);
-    context.fillStyle = "#48020c39";
-    context.fill();
-    context.strokeStyle = palette.wine;
-    context.lineWidth = 5;
-    context.stroke();
-    scales.forEach((scale,index) => {
-      context.beginPath();
-      context.arc(x(scale,index), y(scale,index), 6, 0, 2*Math.PI);
-      context.fillStyle = profile[index].color;
-      context.fill();
-    });
-    return canvas;
-  }
-
-  function profileBoard(report) {
-    const section = element("section", "result-section");
-    section.append(element("h2", "", copy.chart));
-    const board = element("div", "profile-board");
-    const info = element("div");
-    const code = element("bdi", "code", report.code);
-    info.append(element("p", "small", copy.early), code);
-    if (report.tied) info.append(element("p", "small", copy.tie));
-    info.append(list("ul", report.top.map(type => {
-      const content = element("span");
-      const key = element("bdi", "type-id", type.key);
-      key.style.setProperty("--type", type.color);
-      content.append(key, element("strong", "", type.title), " · ", type.description);
-      return content;
-    })));
-    const side = element("div");
-    const keyList = element("dl", "chart-key");
-    report.profile.forEach(type => {
-      const entry = element("div");
-      const name = element("dt", "", type.title);
-      const key = element("bdi", "type-id", type.key);
-      key.style.setProperty("--type", type.color);
-      name.prepend(key);
-      entry.append(name, element("dd", "", numerals.format(type.total)));
-      keyList.append(entry);
-    });
-    side.append(chart(report.profile), element("p", "small", copy.chartScale), keyList);
-    board.append(info, side);
-    section.append(board);
+    section.append(list);
     return section;
   }
 
-  function cardCanvas(report) {
+  function shareCard(fields) {
     const canvas = document.createElement("canvas");
-    canvas.width = 720;
-    canvas.height = 1280;
+    canvas.width = 1080;
+    canvas.height = 1920;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = palette.wine;
-    ctx.fillRect(0,0,720,1280);
-    ctx.strokeStyle = "#b48578";
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath();
-      ctx.ellipse(555 + 20*i, 1115 - 25*i, 390, 94, -.47, 0, Math.PI * 2);
-      ctx.stroke();
-    }
+    const font = '"IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
+    const paper = "#f3f2f0";
+    const wine = "#48020c";
+    ctx.fillStyle = wine;
+    ctx.fillRect(0,0,1080,1920);
+    ctx.save();
+    ctx.translate(0,1115);
+    ctx.scale(2.48,2.48);
+    ThreadData.fields.forEach((field,i) => {
+      ctx.strokeStyle = field.tint;
+      ctx.globalAlpha = .63;
+      ctx.lineWidth = 1.45;
+      ctx.stroke(new Path2D(threadPath(i)));
+    });
+    ctx.restore();
     ctx.direction = "rtl";
     ctx.textAlign = "right";
-    ctx.fillStyle = palette.paper;
-    ctx.font = '27px "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
-    ctx.fillText(institution, 656, 117);
-    ctx.font = 'bold 78px "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
-    ctx.fillText(title, 656, 250, 590);
-    ctx.fillStyle = palette.vanilla;
-    ctx.fillRect(58,326,604,556);
-    ctx.fillStyle = palette.wine;
-    ctx.font = '28px "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
-    ctx.fillText(copy.early, 614, 403);
-    ctx.direction = "ltr";
-    ctx.textAlign = "left";
-    ctx.font = "bold 112px Georgia, serif";
-    ctx.fillText(report.code, 104, 526, 505);
-    ctx.direction = "rtl";
-    ctx.textAlign = "right";
-    ctx.font = '28px "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
-    ctx.fillText(report.reason ? copy.try : report.close ? copy.closeHeading : copy.best, 614, 628);
-    ctx.font = 'bold 39px "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
-    const tracks = report.reason || report.close ? report.suggestions : report.ranking.slice(0, 1);
-    let lineY = 690;
-    tracks.forEach(track => {
-      const title = track.title;
+    ctx.fillStyle = paper;
+    ctx.font = `38px ${font}`;
+    ctx.fillText(institution,980,126,860);
+    ctx.font = `bold 118px ${font}`;
+    ctx.fillText(title,980,292,875);
+    ctx.font = `bold 47px ${font}`;
+    ctx.fillText(copy.result,980,400,875);
+    fields.forEach((field,i) => {
+      const y = 490 + i*315;
+      ctx.fillStyle = field.tint;
+      ctx.fillRect(98,y,884,265);
+      ctx.fillStyle = field.color;
+      ctx.fillRect(955,y,27,265);
+      ctx.fillRect(148,y+65,130,130);
+      ctx.save();
+      ctx.translate(166,y+83);
+      ctx.scale(2.6,2.6);
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1.8;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke(new Path2D(field.icon));
+      ctx.restore();
+      ctx.fillStyle = field.color;
+      ctx.font = `bold 62px ${font}`;
+      const words = field.name.split(" ");
       let line = "";
-      for (const word of title.split(" ")) {
-        const next = line ? `${line} ${word}` : word;
-        if (line && ctx.measureText(next).width > 515) {
-          ctx.fillText(line, 614, lineY);
-          lineY += 49;
+      let baseline = y+114;
+      for (const word of words) {
+        const next = line ? line+" "+word : word;
+        if (line && ctx.measureText(next).width > 590) {
+          ctx.fillText(line,903,baseline);
+          baseline += 76;
           line = word;
         } else line = next;
       }
-      ctx.fillText(line, 614, lineY);
-      lineY += 58;
+      ctx.fillText(line,903,baseline,590);
     });
-    ctx.font = 'bold 35px "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
-    const tagWidth = Math.min(590, ctx.measureText(hashtag).width);
-    ctx.fillStyle = palette.wine;
-    ctx.fillRect(640 - tagWidth, 1145, tagWidth + 33, 52);
-    ctx.fillStyle = palette.paper;
-    ctx.fillText(hashtag, 656, 1178, 590);
+    ctx.fillStyle = paper;
+    ctx.font = `36px ${font}`;
+    ctx.fillText(copy.note,980,1690,875);
+    if (location.protocol === "https:" || location.protocol === "http:") {
+      ctx.direction = "ltr";
+      ctx.textAlign = "left";
+      ctx.font = "27px Arial";
+      ctx.fillText(new URL("play.html",location.href).href,98,1795,884);
+    }
     return canvas;
   }
 
-  function shareSection(report) {
-    const section = element("section", "result-section share-area");
-    const heading = element("h2", "", copy.share);
-    const image = element("img", "share-card");
+  function sharing(report) {
+    const section = node("section","sharing");
+    const heading = node("h2","",copy.shareHeading);
+    const image = node("img","share-image");
+    image.alt = `${title} · ${report.suggestions.map(item => item.name).join("، ")}`;
+    image.width = 1080;
+    image.height = 1920;
     image.hidden = true;
-    image.alt = copy.cardAlt;
-    image.width = 720;
-    image.height = 1280;
-    const controls = element("div", "share-buttons");
-    const feedback = element("p", "small");
+    const actions = node("div","share-actions");
+    const feedback = node("p","muted");
     feedback.setAttribute("role","status");
-    section.append(heading, image, controls, feedback);
-    function setError() {
-      image.hidden = true;
-      feedback.textContent = copy.cardError;
-    }
-    async function makeImage() {
+    section.append(heading,image,actions,feedback);
+    async function make() {
       await document.fonts?.ready;
       if (!section.isConnected) return;
-      try {
-        cardCanvas(report).toBlob(blob => {
-          if (!section.isConnected) return;
-          if (!blob) {
-            setError();
-            return;
-          }
-          cardUrl = URL.createObjectURL(blob);
-          image.src = cardUrl;
-          image.hidden = false;
-          const file = new File([blob], "amsik-al-khayt.png", {type:"image/png"});
-          if (navigator.canShare?.({files:[file]})) {
-            controls.append(button(copy.shareAction, "action", async () => {
-              try {
-                await navigator.share({files:[file], title});
-              } catch (error) {
-                if (error.name !== "AbortError") feedback.textContent = copy.shareError;
-              }
-            }));
-          }
-          const download = element("a", "action secondary", copy.download);
-          download.href = cardUrl;
-          download.download = file.name;
-          controls.append(download);
-          feedback.textContent = copy.saveHint;
-        }, "image/png");
-      } catch {
-        setError();
-      }
+      shareCard(report.suggestions).toBlob(blob => {
+        if (!blob || !section.isConnected) return;
+        shareUrl = URL.createObjectURL(blob);
+        image.src = shareUrl;
+        image.hidden = false;
+        const file = new File([blob],"amsik-al-khayt.png",{type:"image/png"});
+        const download = node("a","button button-wine",copy.save);
+        download.href = shareUrl;
+        download.download = file.name;
+        actions.append(download);
+        if (navigator.canShare?.({files:[file]})) {
+          actions.append(button(copy.share,"button button-outline",async () => {
+            try {
+              await navigator.share({files:[file],title});
+            } catch (error) {
+              if (error.name !== "AbortError") feedback.textContent = copy.shareFailed;
+            }
+          }));
+        }
+        feedback.textContent = copy.downloadHint;
+      },"image/png");
     }
-    queueMicrotask(makeImage);
+    queueMicrotask(() => make().catch(() => {
+      feedback.textContent = "تعذّر تجهيز صورة البطاقة في هذا المتصفّح.";
+    }));
     return section;
   }
 
-  function sourceSection() {
-    const details = element("details", "sources");
-    details.append(element("summary", "", copy.sources),
-      list("ul", [external(copy.database, links.database), external(copy.license, links.license), external(copy.model, links.model)]));
-    return details;
-  }
-
-  function result() {
-    const responses = Object.fromEntries(state.order.map((id, index) => [id, state.responses[index]]));
-    const report = scoring.scoreProfile(responses);
-    const screen = element("div", "result enter");
-    const header = element("header", "result-header");
-    const heading = element("h1", "", copy.result);
-    const headline = element("div", "result-headline");
-    const codePreview = element("bdi", "code-preview", report.code);
-    codePreview.setAttribute("aria-label", `${copy.early}: ${report.code}`);
-    headline.append(heading, codePreview);
-    header.append(headline, element("p", "small", copy.honesty));
-    const summary = element("section", "result-summary");
-    if (report.reason) {
-      summary.append(element("p", "", copy[report.reason]), element("h2", "", copy.try));
-      report.suggestions.forEach(track => summary.append(trackCard(track)));
-    } else {
-      const [best, second, third] = report.ranking;
-      if (report.close) summary.append(element("p", "", copy.close));
-      const bridge = element("p", "small");
-      bridge.append(element("strong", "", copy.outsideMajor), " · ", best.bridge);
-      summary.append(trackCard(best, {showPercent:true, label:report.close ? copy.closeHeading : copy.best, feature:true}),
-        bridge, element("h2", "", copy.others),
-        trackCard(second, {showPercent:true}), trackCard(third, {showPercent:true}),
-        element("p", "small", copy.percentInfo));
-    }
-    const restart = button(copy.restart, "action secondary", () => {
-      if (!window.confirm(copy.confirmRestart)) return;
-      if (cardUrl) URL.revokeObjectURL(cardUrl);
-      cardUrl = undefined;
-      state = null;
-      save();
-      welcome();
-      app.querySelector("button")?.focus();
-    });
-    screen.append(header, summary, profileBoard(report), shareSection(report),
-      element("p", "result-section small", copy.attribution), sourceSection(), element("p", "booth-end", copy.boothCTA), restart);
-    show(screen, heading);
-    announcement.textContent = copy.result;
+  function showResult() {
+    const report = score(Object.fromEntries(session.ids.map((id,i) => [id,session.ratings[i]])));
+    const screen = node("div","result");
+    const header = node("header","result-header");
+    const heading = node("h1","",copy.result);
+    const mark = node("span","result-loop");
+    mark.setAttribute("aria-hidden","true");
+    mark.append(threads("result-threads"));
+    header.append(node("p","result-label",copy.resultLabel),heading,mark);
+    if (report.status) header.append(node("p","muted",copy[report.status]));
+    const cards = node("div","field-grid");
+    report.suggestions.forEach(field => cards.append(card(field)));
+    const foot = node("footer","result-footer");
+    foot.append(node("p","muted",copy.note),button(copy.restart,"button button-outline",reset));
+    screen.append(header,cards,chart(report.scores),sharing(report),foot);
+    show(screen,heading);
+    announcement.textContent = copy.resultLabel;
   }
 
   welcome();
