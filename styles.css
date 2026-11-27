@@ -72,6 +72,8 @@ h1:focus { outline:none; }
 @keyframes back { from { transform:translateX(-9px); } }
 .question-panel { display:grid; gap:.38rem; padding:clamp(.8rem,3.5vw,1.4rem); border:1px solid #e0c6a1; border-radius:1.03rem .36rem 1.03rem .36rem; background:#f9ecd6; }
 .question-panel h1 { color:#4b1728; font-size:clamp(1.22rem,5.15vw,2.06rem); line-height:1.47; }
+.request-speaker { display:block; color:#603d31; font:inherit; margin-block-end:.26em; }
+.request-task { display:block; font:inherit; }
 .question-stage { display:grid; grid-template-columns:1fr minmax(0,39%); align-items:center; gap:.25rem; border-block-start:1px dashed #d3b590; margin-block-start:.32rem; }
 .question-prompt { color:#6b3043; font-size:clamp(.81rem,3.55vw,.98rem); font-weight:700; }
 .quiz-art { display:block; width:100%; max-width:10.25rem; justify-self:end; height:auto; }

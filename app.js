@@ -174,7 +174,12 @@
     const moving = node("div",backward ? "question move-back" : "question move-next");
     const panel = node("div","question-panel");
     const activity = byId.get(ids[index]);
-    const heading = node("h1","",activity.text);
+    const heading = node("h1","request-heading");
+    heading.append(
+      node("span","request-speaker",activity.speaker+":"),
+      " ",
+      node("span","request-task","«"+activity.text+"»")
+    );
     heading.id = "activity-title";
     heading.setAttribute("aria-describedby","activity-prompt");
     const prompt = node("p","question-prompt",copy.prompt);
