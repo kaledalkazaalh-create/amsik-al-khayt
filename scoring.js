@@ -2,7 +2,7 @@
 
 globalThis.ThreadScoring = (() => {
   const {fields, answers} = ThreadData;
-  const items = fields.flatMap(field => field.texts.map((text, i) => ({id: field.id + "-" + i, field: field.id, text})));
+  const items = fields.flatMap(field => field.activities.map((activity, i) => ({...activity, id: field.id + "-" + i, field: field.id})));
   const byId = new Map(items.map(item => [item.id, item]));
   const validRating = value => Number.isInteger(value) && value >= 1 && value <= answers.length;
   function shuffled(list, random) {

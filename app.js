@@ -105,23 +105,28 @@
     const heading = node("h1","",title);
     lead.append(heading,node("p","hook",copy.hook),node("p","welcome-body",copy.intro));
     const visual = node("div","welcome-visual");
-    visual.append(threads("hero-threads"));
+    const hero = ThreadArt.scene("welcome");
+    visual.append(hero);
     const actions = node("div","welcome-actions");
     let action = copy.start;
     if (session?.index === items.length) action = copy.reopen;
     else if (session?.ratings.length) action = copy.resume;
-    actions.append(button(action,"button button-light",() => {
+    const start = button(action,"button button-light start-button",() => {
       if (!session) {
         session = {ids:order(),ratings:[],index:0};
         persist();
       }
       if (session.index === items.length) showResult();
       else quiz();
-    }));
-    actions.append(node("p","duration",`${numbers.format(items.length)} نشاطًا قصيرًا`));
+    });
+    const arrow = node("span","start-arrow","←");
+    arrow.setAttribute("aria-hidden","true");
+    start.append(arrow);
+    actions.append(start,node("p","duration",`${numbers.format(items.length)} نشاطًا قصيرًا من الحياة الجامعية`));
     if (session?.ratings.length) actions.append(button(copy.restart,"text-button light-link",reset));
     screen.append(lead,visual,actions);
     show(screen,heading,focus);
+    ThreadArt.greet(hero,reduced.matches);
   }
 
   function progress(index) {
@@ -153,12 +158,18 @@
     if (milestone) meta.append(node("p","milestone",milestone));
     const moving = node("div",backward ? "question move-back" : "question move-next");
     const panel = node("div","question-panel");
-    const heading = node("h1","",byId.get(ids[index]).text);
+    const activity = byId.get(ids[index]);
+    const context = node("p","question-context",activity.context);
+    context.id = "activity-context";
+    const heading = node("h1","",activity.text);
     heading.id = "activity-title";
-    heading.setAttribute("aria-describedby","activity-prompt");
-    const prompt = node("p","",copy.prompt);
+    heading.setAttribute("aria-describedby","activity-context activity-prompt");
+    const prompt = node("p","question-prompt",copy.prompt);
     prompt.id = "activity-prompt";
-    panel.append(heading,prompt);
+    const vignette = ThreadArt.scene("question",index);
+    const stage = node("div","question-stage");
+    stage.append(prompt,vignette);
+    panel.append(context,heading,stage);
     const choices = node("div","choices");
     choices.setAttribute("role","group");
     choices.setAttribute("aria-labelledby",heading.id);
@@ -175,12 +186,14 @@
     back.prepend(node("span","back-arrow","→"));
     back.firstChild.setAttribute("aria-hidden","true");
     answers.forEach((text,i) => {
-      const choice = button(text,"answer",() => select(i+1,choices,back));
+      const choice = button(text,"answer",() => select(i+1,choices,back,vignette));
       choice.setAttribute("aria-pressed",String(ratings[index] === i+1));
       const dots = node("span","answer-dots");
       dots.setAttribute("aria-hidden","true");
       for (let n=0;n<answers.length;n++) dots.append(node("i",n<=i ? "dot filled" : "dot"));
-      choice.append(dots);
+      const tick = node("span","answer-check","✓");
+      tick.setAttribute("aria-hidden","true");
+      choice.append(dots,tick);
       choices.append(choice);
     });
     moving.append(panel,choices);
@@ -189,13 +202,15 @@
     announcement.textContent = milestone ? `${count}. ${milestone}` : count;
   }
 
-  function select(value, choices, back) {
+  function select(value, choices, back, vignette) {
     if (advancing) return;
     advancing = true;
+    choices.classList.add("answer-locked");
     [...choices.children].forEach((child,i) => {
       child.setAttribute("aria-pressed",String(i+1 === value));
       child.disabled = true;
     });
+    ThreadArt.react(vignette,session.index,reduced.matches);
     back.disabled = true;
     session.ratings[session.index] = value;
     session.index++;
@@ -204,7 +219,7 @@
       advancing = false;
       if (session.index === items.length) reveal();
       else quiz();
-    },reduced.matches ? 0 : 135);
+    },reduced.matches ? 0 : 340);
   }
 
   function reveal() {
@@ -216,11 +231,12 @@
     const heading = node("h1","",copy.reveal);
     screen.append(threads("reveal-threads"),heading);
     show(screen,heading);
-    setTimeout(showResult,1850);
+    setTimeout(showResult,1080);
   }
 
   function card(field) {
     const article = node("article","field-card");
+    article.id = `field-${field.id}`;
     article.style.setProperty("--field",field.color);
     article.style.setProperty("--tint",field.tint);
     const banner = node("header","field-banner");
@@ -235,11 +251,12 @@
       const reason = node("div","field-reason");
       reason.append(node("h3","",copy.reason));
       const list = node("ul");
-      field.reasons.forEach(item => list.append(node("li","",item.text)));
+      field.reasons.forEach(item => list.append(node("li","",item.short)));
       reason.append(list);
       detail.append(reason);
     }
     const step = node("section","week-step");
+    step.id = `step-${field.id}`;
     step.append(node("h3","",copy.step),node("p","",field.step));
     const extra = node("details","field-extra");
     extra.append(node("summary","",copy.work),node("p","",field.example),node("h3","",copy.skills),node("p","",field.skills));
@@ -270,80 +287,112 @@
     return section;
   }
 
-  function shareCard(fields) {
+  function shareCard(report) {
+    const [first,second] = report.suggestions;
     const canvas = document.createElement("canvas");
     canvas.width = 1080;
     canvas.height = 1920;
     const ctx = canvas.getContext("2d");
-    const font = '"IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
-    const paper = "#f3f2f0";
-    const wine = "#48020c";
-    ctx.fillStyle = wine;
-    ctx.fillRect(0,0,1080,1920);
-    ctx.save();
-    ctx.translate(0,1115);
-    ctx.scale(2.48,2.48);
-    ThreadData.fields.forEach((field,i) => {
-      ctx.strokeStyle = field.tint;
-      ctx.globalAlpha = .63;
-      ctx.lineWidth = 1.45;
-      ctx.stroke(new Path2D(threadPath(i)));
-    });
-    ctx.restore();
-    ctx.direction = "rtl";
-    ctx.textAlign = "right";
-    ctx.fillStyle = paper;
-    ctx.font = `38px ${font}`;
-    ctx.fillText(institution,980,126,860);
-    ctx.font = `bold 118px ${font}`;
-    ctx.fillText(title,980,292,875);
-    ctx.font = `bold 47px ${font}`;
-    ctx.fillText(copy.result,980,400,875);
-    fields.forEach((field,i) => {
-      const y = 490 + i*315;
-      ctx.fillStyle = field.tint;
-      ctx.fillRect(98,y,884,265);
-      ctx.fillStyle = field.color;
-      ctx.fillRect(955,y,27,265);
-      ctx.fillRect(148,y+65,130,130);
+    const face = '"IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
+    const cream = "#fff1d9";
+    const gold = "#ffda98";
+    const plum = "#4b1728";
+    const wine = "#681f36";
+    const {rect,oval,path} = ThreadMascots(ctx);
+
+    function line(text,x,y,size,color,weight="normal",align="right") {
+      ctx.direction = "rtl";
+      ctx.textAlign = align;
+      ctx.font = `${weight} ${size}px ${face}`;
+      ctx.fillStyle = color;
+      ctx.fillText(text,x,y);
+    }
+
+    function wrap(text,x,y,width,size,color,weight="normal",leading=size*1.35) {
+      ctx.font = `${weight} ${size}px ${face}`;
+      let current = "";
+      for (const word of text.split(" ")) {
+        const candidate = current ? current+" "+word : word;
+        if (current && ctx.measureText(candidate).width > width) {
+          line(current,x,y,size,color,weight);
+          y += leading;
+          current = word;
+        } else current = candidate;
+      }
+      line(current,x,y,size,color,weight);
+      return y;
+    }
+
+    function fieldIcon(field,x,y,scale) {
       ctx.save();
-      ctx.translate(166,y+83);
-      ctx.scale(2.6,2.6);
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 1.8;
+      ctx.translate(x,y);
+      ctx.scale(scale,scale);
+      ctx.strokeStyle = field.color;
+      ctx.lineWidth = 1.75;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.stroke(new Path2D(field.icon));
       ctx.restore();
-      ctx.fillStyle = field.color;
-      ctx.font = `bold 62px ${font}`;
-      const words = field.name.split(" ");
-      let line = "";
-      let baseline = y+114;
-      for (const word of words) {
-        const next = line ? line+" "+word : word;
-        if (line && ctx.measureText(next).width > 590) {
-          ctx.fillText(line,903,baseline);
-          baseline += 76;
-          line = word;
-        } else line = next;
-      }
-      ctx.fillText(line,903,baseline,590);
-    });
-    ctx.fillStyle = paper;
-    ctx.font = `36px ${font}`;
-    ctx.fillText(copy.note,980,1690,875);
+    }
+
+    function fieldRow(field,y,label) {
+      rect(115,y,850,155,29,field.tint);
+      oval(199,y+77,53,53,cream);
+      fieldIcon(field,173,y+51,1.48);
+      line(label,925,y+46,31,field.color,"bold");
+      wrap(field.name,925,y+94,635,47,field.color,"bold",47);
+    }
+
+    const wash = ctx.createLinearGradient(0,0,1080,1920);
+    wash.addColorStop(0,"#381223");
+    wash.addColorStop(.62,plum);
+    wash.addColorStop(1,"#331120");
+    rect(0,0,1080,1920,0,wash);
+    rect(36,36,1008,1848,41,"#ffffff00","#a67c64");
+    line(institution,984,130,34,cream);
+    line(title,988,264,112,cream,"bold");
+    path([[100,294],[980,294]],"#b9876e",2);
+    ThreadArt.sparkle(ctx,132,210,24,gold);
+    ctx.save();
+    ctx.translate(28,294);
+    ctx.scale(1.65,1.53);
+    ThreadArt.illustration(ctx,second.tint,report.suggestions);
+    ctx.restore();
+
+    const headline = report.status ? copy.result : first.headline;
+    line(headline,970,815,64,gold,"bold");
+    rect(78,860,924,785,49,cream);
+    const firstLabel = report.status ? copy.compare : copy.primary;
+    const secondLabel = report.status ? copy.compare : copy.secondary;
+    fieldRow(first,916,firstLabel);
+    fieldRow(second,1094,secondLabel);
+    ctx.save();
+    ctx.setLineDash([7,10]);
+    path([[102,1305],[978,1305]],"#a98272",2);
+    ctx.restore();
+    oval(78,1305,19,19,wine);
+    oval(1002,1305,19,19,wine);
+    line(copy.step,953,1385,36,wine,"bold");
+    const practice = report.status ? "اختر مهمة من كل مجال وجرّبهما، ثم قارن أيهما استمتعت به أكثر." : first.tinyStep;
+    wrap(practice,953,1456,780,49,plum,"bold",64);
+    ThreadArt.sparkle(ctx,147,1559,12,wine);
+    line(copy.notes,971,1728,34,cream);
+    path([[100,1772],[980,1772]],"#b9876e",2);
+
     if (location.protocol === "https:" || location.protocol === "http:") {
       ctx.direction = "ltr";
       ctx.textAlign = "left";
-      ctx.font = "27px Arial";
-      ctx.fillText(new URL("play.html",location.href).href,98,1795,884);
+      ctx.font = "25px Arial";
+      ctx.fillText(new URL("play.html",location.href).href,101,1827,870);
     }
     return canvas;
   }
 
+
+
   function sharing(report) {
     const section = node("section","sharing");
+    section.id = "share-result";
     const heading = node("h2","",copy.shareHeading);
     const image = node("img","share-image");
     image.alt = `${title} · ${report.suggestions.map(item => item.name).join("، ")}`;
@@ -357,7 +406,7 @@
     async function make() {
       await document.fonts?.ready;
       if (!section.isConnected) return;
-      shareCard(report.suggestions).toBlob(blob => {
+      shareCard(report).toBlob(blob => {
         if (!blob || !section.isConnected) return;
         shareUrl = URL.createObjectURL(blob);
         image.src = shareUrl;
@@ -385,21 +434,49 @@
     return section;
   }
 
+  function quickLink(text,target,cls="") {
+    const link = node("a",cls,text);
+    link.href = "#"+target;
+    return link;
+  }
+
   function showResult() {
     const report = score(Object.fromEntries(session.ids.map((id,i) => [id,session.ratings[i]])));
     const screen = node("div","result");
     const header = node("header","result-header");
-    const heading = node("h1","",copy.result);
+    const [first, second] = report.suggestions;
+    const heading = node("h1","",report.status ? copy.result : first.headline);
+    header.style.setProperty("--first-tint",first.tint);
+    header.style.setProperty("--second-tint",second.tint);
     const mark = node("span","result-loop");
     mark.setAttribute("aria-hidden","true");
     mark.append(threads("result-threads"));
     header.append(node("p","result-label",copy.resultLabel),heading,mark);
-    if (report.status) header.append(node("p","muted",copy[report.status]));
+    if (report.status) header.append(node("p","result-context",copy[report.status]));
+    else {
+      header.append(node("p","result-context",first.tagline+" · "+first.why));
+      if (first.reasons.length) header.append(node("p","result-evidence",copy.reason+" "+first.reasons[0].short+"."));
+    }
+    const summary = node("div","result-pair");
+    report.suggestions.forEach((field,i) => {
+      const item = quickLink("",`field-${field.id}`,"result-ticket");
+      item.style.setProperty("--ticket-color",field.color);
+      item.style.setProperty("--ticket-tint",field.tint);
+      const label = node("span","result-ticket-label",report.status ? copy.compare : i === 0 ? copy.primary : copy.secondary);
+      const text = node("span","ticket-copy");
+      text.append(label,node("strong","",field.name));
+      item.append(text,ink(field));
+      summary.append(item);
+    });
+    const actions = node("div","result-actions");
+    actions.append(quickLink(copy.firstStep,`step-${first.id}`,"button button-light"),
+      quickLink(copy.cardOpen,"share-result","button result-share-link"));
+    header.append(summary,actions);
     const cards = node("div","field-grid");
     report.suggestions.forEach(field => cards.append(card(field)));
     const foot = node("footer","result-footer");
     foot.append(node("p","muted",copy.note),button(copy.restart,"button button-outline",reset));
-    screen.append(header,cards,chart(report.scores),sharing(report),foot);
+    screen.append(header,cards,sharing(report),chart(report.scores),foot);
     show(screen,heading);
     announcement.textContent = copy.resultLabel;
   }
