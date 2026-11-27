@@ -12,9 +12,17 @@
   let session = restore();
   let advancing = false;
   let shareUrl;
+  let motionPref;
+  const motionOn = () => motionPref ?? !reduced.matches;
 
   document.querySelector("[data-name]").textContent = title;
   document.querySelector("[data-institution]").textContent = institution;
+  const motionButton = button("", "motion-button", () => {
+    motionPref = !motionOn();
+    syncMotion();
+  });
+  document.querySelector(".game-header").append(motionButton);
+  reduced.addEventListener("change",syncMotion);
 
   function node(tag, cls, value) {
     const el = document.createElement(tag);
@@ -83,11 +91,19 @@
 
   function show(screen, heading, focus = true) {
     game.replaceChildren(screen);
+    syncMotion();
     scrollTo(0,0);
     if (focus) {
       heading.tabIndex = -1;
       heading.focus({preventScroll:true});
     }
+  }
+
+  function syncMotion() {
+    const enabled = motionOn();
+    motionButton.textContent = enabled ? copy.motionOff : copy.motionOn;
+    document.body.classList.toggle("motion-paused",!enabled);
+    game.querySelectorAll("canvas.hero-art, canvas.quiz-art, canvas.result-art").forEach(canvas => ThreadArt.play(canvas,enabled));
   }
 
   function reset() {
@@ -122,11 +138,10 @@
     const arrow = node("span","start-arrow","←");
     arrow.setAttribute("aria-hidden","true");
     start.append(arrow);
-    actions.append(start,node("p","duration",`${numbers.format(items.length)} نشاطًا قصيرًا من الحياة الجامعية`));
+    actions.append(start,node("p","duration",`${numbers.format(items.length)} نشاطًا قصيرًا`));
     if (session?.ratings.length) actions.append(button(copy.restart,"text-button light-link",reset));
     screen.append(lead,visual,actions);
     show(screen,heading,focus);
-    ThreadArt.greet(hero,reduced.matches);
   }
 
   function progress(index) {
@@ -159,17 +174,15 @@
     const moving = node("div",backward ? "question move-back" : "question move-next");
     const panel = node("div","question-panel");
     const activity = byId.get(ids[index]);
-    const context = node("p","question-context",activity.context);
-    context.id = "activity-context";
     const heading = node("h1","",activity.text);
     heading.id = "activity-title";
-    heading.setAttribute("aria-describedby","activity-context activity-prompt");
+    heading.setAttribute("aria-describedby","activity-prompt");
     const prompt = node("p","question-prompt",copy.prompt);
     prompt.id = "activity-prompt";
     const vignette = ThreadArt.scene("question",index);
     const stage = node("div","question-stage");
     stage.append(prompt,vignette);
-    panel.append(context,heading,stage);
+    panel.append(heading,stage);
     const choices = node("div","choices");
     choices.setAttribute("role","group");
     choices.setAttribute("aria-labelledby",heading.id);
@@ -210,7 +223,7 @@
       child.setAttribute("aria-pressed",String(i+1 === value));
       child.disabled = true;
     });
-    ThreadArt.react(vignette,session.index,reduced.matches);
+    ThreadArt.react(vignette);
     back.disabled = true;
     session.ratings[session.index] = value;
     session.index++;
@@ -219,11 +232,11 @@
       advancing = false;
       if (session.index === items.length) reveal();
       else quiz();
-    },reduced.matches ? 0 : 340);
+    },motionOn() ? 560 : 0);
   }
 
   function reveal() {
-    if (reduced.matches) {
+    if (!motionOn()) {
       showResult();
       return;
     }
@@ -231,7 +244,7 @@
     const heading = node("h1","",copy.reveal);
     screen.append(threads("reveal-threads"),heading);
     show(screen,heading);
-    setTimeout(showResult,1080);
+    setTimeout(showResult,1290);
   }
 
   function card(field) {
@@ -258,9 +271,14 @@
     const step = node("section","week-step");
     step.id = `step-${field.id}`;
     step.append(node("h3","",copy.step),node("p","",field.step));
-    const extra = node("details","field-extra");
-    extra.append(node("summary","",copy.work),node("p","",field.example),node("h3","",copy.skills),node("p","",field.skills));
-    detail.append(step,extra);
+    const career = node("section","career-detail");
+    const jobs = node("ul","career-jobs");
+    field.jobs.forEach(job => jobs.append(node("li","",job)));
+    const skills = node("ul","career-skills");
+    field.skills.forEach(skill => skills.append(node("li","",skill)));
+    career.append(node("h3","",copy.jobs),node("p","career-hint",copy.jobsHint),jobs,
+      node("h3","skills-heading",copy.skills),skills);
+    detail.append(career,step);
     article.append(banner,detail);
     return article;
   }
@@ -288,96 +306,112 @@
   }
 
   function shareCard(report) {
-    const [first,second] = report.suggestions;
     const canvas = document.createElement("canvas");
-    canvas.width = 1080;
-    canvas.height = 1920;
+    canvas.width = 1440;
+    canvas.height = 2560;
     const ctx = canvas.getContext("2d");
-    const face = '"IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
-    const cream = "#fff1d9";
+    const font = '"IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
+    const cream = "#fff2dc";
     const gold = "#ffda98";
     const plum = "#4b1728";
-    const wine = "#681f36";
+    const wine = "#6a2639";
     const {rect,oval,path} = ThreadMascots(ctx);
 
-    function line(text,x,y,size,color,weight="normal",align="right") {
+    function line(value,x,y,size,color,weight="normal",width=1160) {
       ctx.direction = "rtl";
-      ctx.textAlign = align;
-      ctx.font = `${weight} ${size}px ${face}`;
+      ctx.textAlign = "right";
+      ctx.font = `${weight} ${size}px ${font}`;
       ctx.fillStyle = color;
-      ctx.fillText(text,x,y);
+      ctx.fillText(value,x,y,width);
     }
 
-    function wrap(text,x,y,width,size,color,weight="normal",leading=size*1.35) {
-      ctx.font = `${weight} ${size}px ${face}`;
+    function wrap(value,x,y,width,size,color,weight,leading) {
+      ctx.font = `${weight} ${size}px ${font}`;
       let current = "";
-      for (const word of text.split(" ")) {
+      for (const word of value.split(" ")) {
         const candidate = current ? current+" "+word : word;
         if (current && ctx.measureText(candidate).width > width) {
-          line(current,x,y,size,color,weight);
+          line(current,x,y,size,color,weight,width);
           y += leading;
           current = word;
-        } else current = candidate;
+        } else {
+          current = candidate;
+        }
       }
-      line(current,x,y,size,color,weight);
-      return y;
+      line(current,x,y,size,color,weight,width);
     }
 
-    function fieldIcon(field,x,y,scale) {
+    function fieldIcon(field,x,y) {
       ctx.save();
       ctx.translate(x,y);
-      ctx.scale(scale,scale);
+      ctx.scale(2.1,2.1);
       ctx.strokeStyle = field.color;
-      ctx.lineWidth = 1.75;
+      ctx.lineWidth = 1.85;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.stroke(new Path2D(field.icon));
       ctx.restore();
     }
 
-    function fieldRow(field,y,label) {
-      rect(115,y,850,155,29,field.tint);
-      oval(199,y+77,53,53,cream);
-      fieldIcon(field,173,y+51,1.48);
-      line(label,925,y+46,31,field.color,"bold");
-      wrap(field.name,925,y+94,635,47,field.color,"bold",47);
+    function career(field,y,label) {
+      rect(76,y,1288,914,42,cream);
+      rect(107,y+31,1226,166,31,field.tint);
+      oval(201,y+114,61,61,cream);
+      fieldIcon(field,163,y+76);
+      line(label,1284,y+79,33,field.color,"bold");
+      line(field.name,1284,y+146,58,field.color,"bold",963);
+
+      line(copy.jobs,1284,y+262,45,plum,"bold");
+      field.jobs.forEach((job,i) => {
+        const column = i%2;
+        const row = Math.floor(i/2);
+        const right = column ? 687 : 1284;
+        const yy = y+330+row*61;
+        oval(right-8,yy-11,6,6,field.color);
+        line(job,right-31,yy,39,plum,"normal",506);
+      });
+      path([[125,y+486],[1308,y+486]],"#d7b799",2);
+      line(copy.skills,1284,y+552,45,plum,"bold");
+      field.skills.forEach((skill,i) => {
+        const column = i%2;
+        const row = Math.floor(i/2);
+        const left = column ? 127 : 722;
+        const top = y+577+row*67;
+        rect(left,top,586,54,13,field.tint);
+        line(skill,left+562,top+37,35,field.color,"bold",535);
+      });
+
+      rect(126,y+725,1188,153,22,"#f4dfb9");
+      line(copy.step,1286,y+773,35,wine,"bold");
+      wrap(field.tinyStep,1286,y+820,1109,41,plum,"bold",45);
     }
 
-    const wash = ctx.createLinearGradient(0,0,1080,1920);
-    wash.addColorStop(0,"#381223");
-    wash.addColorStop(.62,plum);
-    wash.addColorStop(1,"#331120");
-    rect(0,0,1080,1920,0,wash);
-    rect(36,36,1008,1848,41,"#ffffff00","#a67c64");
-    line(title,988,251,112,cream,"bold");
-    path([[100,294],[980,294]],"#b9876e",2);
-    ThreadArt.sparkle(ctx,132,210,24,gold);
+    const fill = ctx.createLinearGradient(0,0,1440,2560);
+    fill.addColorStop(0,"#351020");
+    fill.addColorStop(.62,plum);
+    fill.addColorStop(1,"#34111f");
+    rect(0,0,1440,2560,0,fill);
+    rect(39,39,1362,2482,50,"#ffffff00","#a78268");
     ctx.save();
-    ctx.translate(28,294);
-    ctx.scale(1.65,1.53);
-    ThreadArt.illustration(ctx,second.tint,report.suggestions);
+    ctx.translate(50,47);
+    ctx.scale(.68,.72);
+    ThreadArt.illustration(ctx,report.suggestions[1].tint,report.suggestions);
     ctx.restore();
+    line(title,1325,165,115,cream,"bold",900);
+    const headline = report.status ? "مجالان لتجربتهما" : report.suggestions[0].headline;
+    line(headline,1325,264,66,gold,"bold",865);
+    path([[107,317],[1333,317]],"#af8066",2.5);
 
-    const headline = report.status ? copy.result : first.headline;
-    line(headline,970,815,64,gold,"bold");
-    rect(78,860,924,785,49,cream);
-    const firstLabel = report.status ? copy.compare : copy.primary;
-    const secondLabel = report.status ? copy.compare : copy.secondary;
-    fieldRow(first,916,firstLabel);
-    fieldRow(second,1094,secondLabel);
-    ctx.save();
-    ctx.setLineDash([7,10]);
-    path([[102,1305],[978,1305]],"#a98272",2);
-    ctx.restore();
-    oval(78,1305,19,19,wine);
-    oval(1002,1305,19,19,wine);
-    line(copy.step,953,1385,36,wine,"bold");
-    const practice = report.status ? "اختر مهمة من كل مجال وجرّبهما، ثم قارن أيهما استمتعت به أكثر." : first.tinyStep;
-    wrap(practice,953,1456,780,49,plum,"bold",64);
-    ThreadArt.sparkle(ctx,147,1559,12,wine);
-    line(copy.notes,971,1728,34,cream);
-    path([[100,1772],[980,1772]],"#b9876e",2);
-    line(cardInstitution,971,1832,39,gold,"bold");
+    report.suggestions.forEach((field,i) => {
+      const label = report.status ? copy.compare : i===0 ? copy.primary : copy.secondary;
+      career(field,360+i*954,label);
+    });
+
+    line(copy.jobsHint,1328,2311,37,cream);
+    line(copy.notes,1328,2370,36,cream);
+    path([[109,2411],[1333,2411]],"#ad8066",2.5);
+    line(cardInstitution,1328,2475,46,gold,"bold");
+    ThreadArt.sparkle(ctx,166,2453,18,gold);
     return canvas;
   }
 
@@ -389,8 +423,8 @@
     const heading = node("h2","",copy.shareHeading);
     const image = node("img","share-image");
     image.alt = `${title} · ${report.suggestions.map(item => item.name).join("، ")}`;
-    image.width = 1080;
-    image.height = 1920;
+    image.width = 1440;
+    image.height = 2560;
     image.hidden = true;
     const actions = node("div","share-actions");
     const feedback = node("p","muted");
@@ -409,6 +443,11 @@
         download.href = shareUrl;
         download.download = file.name;
         actions.append(download);
+        const full = node("a","button button-outline",copy.fullCard);
+        full.href = shareUrl;
+        full.target = "_blank";
+        full.rel = "noopener";
+        actions.append(full);
         if (navigator.canShare?.({files:[file]})) {
           actions.append(button(copy.share,"button button-outline",async () => {
             try {
@@ -444,7 +483,9 @@
     const mark = node("span","result-loop");
     mark.setAttribute("aria-hidden","true");
     mark.append(threads("result-threads"));
-    header.append(node("p","result-label",copy.resultLabel),heading,mark);
+    const topper = node("div","result-topper");
+    topper.append(node("p","result-label",copy.resultLabel),ThreadArt.scene("result",0,report.suggestions));
+    header.append(topper,heading,mark);
     if (report.status) header.append(node("p","result-context",copy[report.status]));
     else {
       header.append(node("p","result-context",first.tagline+" · "+first.why));

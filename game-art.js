@@ -8,6 +8,7 @@ globalThis.ThreadArt = (() => {
   const violet = "#e3c2d9";
   const lime = "#dfe3b4";
   const sky = "#b4d7ec";
+  const animation = new WeakMap();
   const resultProps = {
     analytics:"chart", search:"lens", content:"notebook", creative:"paint",
     ux:"phone", community:"megaphone", strategy:"compass"
@@ -162,17 +163,17 @@ globalThis.ThreadArt = (() => {
     rect(262,256,107,18,9,"#6d554f");
     path([[277,263],[353,263]],"#f1cf95",1.3);
 
-    ctx.save(); ctx.translate(138,125-lift*13); ctx.rotate(-.17-lift*.10);
+    ctx.save(); ctx.translate(138-lift*12,125-lift*28); ctx.rotate(-.17-lift*.16);
     rect(-35,-32,70,64,13,"#fbefd7",ink);
     prop(ctx,resultFields ? resultProps[resultFields[0].id] : "plane",0,0,.94);
     ctx.restore();
-    ctx.save(); ctx.translate(476,151-lift*9); ctx.rotate(.17+lift*.07);
+    ctx.save(); ctx.translate(476+lift*14,151-lift*22); ctx.rotate(.17+lift*.18);
     rect(-35,-32,70,64,13,violet,ink);
     prop(ctx,resultFields ? resultProps[resultFields[1].id] : "paint",0,3,.83);
     ctx.restore();
 
-    student(rival,237,254,{scale:.83,flip:-1,arm:15+lift*7,bob:-lift*5,tilt:-.08});
-    student(hero,315,260,{scale:1.43,arm:35+lift*9,bob:-lift*6,tilt:-.04});
+    student(rival,237-lift*10,254,{scale:.83,flip:-1,arm:15+lift*18,bob:-lift*11,tilt:-.08});
+    student(hero,315+lift*7,260,{scale:1.43,arm:35+lift*12,bob:-lift*16,tilt:-.04-lift*.04});
     ctx.beginPath();
     ctx.ellipse(382,187,22,13,-.35,0,Math.PI*2);
     ctx.strokeStyle = "#7f4f48";
@@ -187,60 +188,84 @@ globalThis.ThreadArt = (() => {
     ctx.restore();
   }
 
-  function vignette(ctx,index,motion=0) {
-    const {oval,student,hero,rival,driver} = ThreadMascots(ctx);
+  function vignette(ctx,index,time=0,reaction=0) {
+    const {oval,path,student,hero,rival,driver} = ThreadMascots(ctx);
     const offset = index%scenes.length;
     const people = [hero,rival,driver];
     const actor = people[offset%people.length];
     oval(79,63,75,45,"#eed9b6");
     oval(79,63,65,40,"#f6e8d0");
-    const move = Math.sin(Math.PI*motion);
-    const shift = offset===1 ? move*9 : offset===0 ? -move*6 : 0;
-    const x = 77+shift;
+    const swing = Math.sin(time*3+offset*.5)*.5+.5;
+    const travel = Math.sin(time*2.2+offset)*.5+.5;
+    const move = reaction+.35*swing;
+    const x = 70 + (offset===1 ? move*9 : offset===0 ? -move*9 : travel*4);
+    const positions = [
+      [111+travel*21,51-move*30,-.3+move*.18],
+      [119+travel*14,68-move*37,time*2.9+reaction*4],
+      [121,54-move*19,.15-swing*.35],
+      [119+travel*8,57-move*18,.06+move*.2],
+      [124+travel*14,43-move*14,-.13+swing*.35],
+      [120,58-move*19,-.2+move*.52],
+      [119+travel*7,52-move*11,swing*.24-.18]
+    ];
+    const [px,py,angle] = positions[offset];
+    if (offset===4) path([[x+23,64],[px-10,py+20],[px,py+14]],"#86526a",1.6);
+    if (offset===0 || offset===1) path([[px-19,py+10],[px-28,py+11],[px-34,py+10]],"#ad7558",1.2);
     student(actor,x,102,{
       scale:.68,arm:(offset%2?17:24)+move*24,bob:-move*(offset%2?11:6),
       tilt:(offset%2?-.09:.07)*move,flip:1
     });
-    prop(ctx,scenes[offset],121+move*((offset%2)?14:7),52-move*((offset===0||offset===4)?30:17),.73,.11+move*.55);
+    prop(ctx,scenes[offset],px,py,.74,angle);
     sparkle(ctx,38,42-move*7,6+move*3,"#a66b60");
-    sparkle(ctx,138,24-move*4,6,gold);
+    sparkle(ctx,139,24-move*4,6+swing*2,gold);
+    if (reaction>.05) {
+      sparkle(ctx,104-reaction*9,25-reaction*12,4+reaction*5,"#b16f81");
+      sparkle(ctx,146,74+reaction*8,3+reaction*4,"#bc8257");
+    }
   }
 
-  function scene(mode,index=0,accent) {
+  function scene(mode,index=0,resultFields) {
     const canvas = document.createElement("canvas");
     const large = mode !== "question";
     canvas.width = large ? 1240 : 320;
     canvas.height = large ? 594 : 224;
-    canvas.className = large ? "hero-art" : "quiz-art";
+    canvas.className = mode === "result" ? "result-art" : large ? "hero-art" : "quiz-art";
     canvas.setAttribute("aria-hidden","true");
     const ctx = canvas.getContext("2d");
     ctx.scale(2,2);
-    if (large) illustration(ctx,accent);
-    else vignette(ctx,index);
+    const paint = large
+      ? (time,reaction) => illustration(ctx,resultFields?.[1].tint,resultFields,(time%4.2)/4.2+reaction*.18)
+      : (time,reaction) => vignette(ctx,index,time,reaction);
+    animation.set(canvas,{ctx,paint,frame:0,started:null,lastPaint:0,tap:-1000,enabled:false});
+    paint(0,0);
     return canvas;
   }
 
-  function animate(canvas,duration,paint,reduced) {
-    if (reduced) return;
-    const ctx = canvas.getContext("2d");
-    const start = performance.now();
+  function play(canvas,enabled) {
+    const state = animation.get(canvas);
+    if (!state || state.enabled === enabled) return;
+    state.enabled = enabled;
+    cancelAnimationFrame(state.frame);
+    if (!enabled) return;
     function frame(now) {
-      if (!canvas.isConnected) return;
-      ctx.clearRect(0,0,canvas.width/2,canvas.height/2);
-      const progress = Math.min(1,(now-start)/duration);
-      paint(ctx,progress);
-      if (progress < 1) requestAnimationFrame(frame);
+      if (!canvas.isConnected || !state.enabled) return;
+      if (state.started === null) state.started = now;
+      if (now-state.lastPaint >= 1000/30) {
+        state.lastPaint = now;
+        const phase = Math.max(0,Math.min(1,(now-state.tap)/510));
+        const reaction = Math.sin(Math.PI*phase);
+        state.ctx.clearRect(0,0,canvas.width/2,canvas.height/2);
+        state.paint((now-state.started)/1000,reaction);
+      }
+      state.frame = requestAnimationFrame(frame);
     }
-    requestAnimationFrame(frame);
+    state.frame = requestAnimationFrame(frame);
   }
 
-  function react(canvas,index,reduced) {
-    animate(canvas,315,(ctx,t) => vignette(ctx,index,t),reduced);
+  function react(canvas) {
+    const state = animation.get(canvas);
+    if (state?.enabled) state.tap = performance.now();
   }
 
-  function greet(canvas,reduced) {
-    animate(canvas,1220,(ctx,t) => illustration(ctx,gold,null,t),reduced);
-  }
-
-  return {scene,react,greet,illustration,sparkle};
+  return {scene,play,react,illustration,sparkle};
 })();

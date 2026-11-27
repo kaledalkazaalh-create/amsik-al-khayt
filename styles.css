@@ -31,10 +31,11 @@ h1:focus { outline:none; }
 .sr-only { position:absolute; inline-size:1px; block-size:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 .muted { color:var(--muted); font-size:.9rem; }
 .game-shell { max-inline-size:66rem; margin-inline:auto; padding-inline:max(1rem,env(safe-area-inset-right)) max(1rem,env(safe-area-inset-left)); }
-.game-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; column-gap:1rem; padding-block:max(.9rem,env(safe-area-inset-top)) .72rem; border-block-end:1px solid var(--line); }
+.game-header { display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:.72rem; padding-block:max(.7rem,env(safe-area-inset-top)) .62rem; border-block-end:1px solid var(--line); }
 .game-brand { display:inline-flex; align-items:center; gap:.5rem; color:var(--wine); font-size:1.02rem; font-weight:700; }
 .brand-loop { display:inline-block; inline-size:1.55rem; block-size:.85rem; border:2px solid currentColor; border-inline-end-color:transparent; border-radius:50%; transform:rotate(-29deg); }
-.game-institution { font-size:.73rem; color:var(--muted); }
+.game-institution { grid-column:1; font-size:.72rem; color:var(--muted); }
+.motion-button { grid-column:2; grid-row:1 / 3; min-block-size:2.75rem; background:var(--light); color:var(--wine); border:1px solid var(--line); border-radius:.42rem; padding:.2rem .55rem; font-size:.72rem; font-weight:700; }
 #game { padding-block:clamp(1rem,3vw,2.1rem) max(2rem,env(safe-area-inset-bottom)); }
 .button { display:inline-flex; min-block-size:3.1rem; align-items:center; justify-content:center; padding:.55rem 1.15rem; border-radius:.35rem; border:1px solid transparent; text-decoration:none; font-weight:700; text-align:center; }
 .button-light { background:var(--milk); color:var(--wine); }
@@ -70,16 +71,16 @@ h1:focus { outline:none; }
 @keyframes next { from { transform:translateX(9px); } }
 @keyframes back { from { transform:translateX(-9px); } }
 .question-panel { display:grid; gap:.38rem; padding:clamp(.8rem,3.5vw,1.4rem); border:1px solid #e0c6a1; border-radius:1.03rem .36rem 1.03rem .36rem; background:#f9ecd6; }
-.question-panel h1 { color:#4b1728; font-size:clamp(1.25rem,5.2vw,2.2rem); }
-.question-context { color:#60483e; font-size:clamp(.9rem,3.8vw,1.04rem); }
-.question-stage { display:grid; grid-template-columns:1fr minmax(0,31%); align-items:center; gap:.25rem; border-block-start:1px dashed #d3b590; margin-block-start:.28rem; }
+.question-panel h1 { color:#4b1728; font-size:clamp(1.22rem,5.15vw,2.06rem); line-height:1.47; }
+.question-stage { display:grid; grid-template-columns:1fr minmax(0,39%); align-items:center; gap:.25rem; border-block-start:1px dashed #d3b590; margin-block-start:.32rem; }
 .question-prompt { color:#6b3043; font-size:clamp(.81rem,3.55vw,.98rem); font-weight:700; }
-.quiz-art { display:block; width:100%; max-width:8.6rem; justify-self:end; height:auto; }
+.quiz-art { display:block; width:100%; max-width:10.25rem; justify-self:end; height:auto; }
 .choices { display:grid; gap:.43rem; margin-block-start:.8rem; }
 .answer { position:relative; display:flex; justify-content:space-between; align-items:center; gap:.42rem; width:100%; min-block-size:3.08rem; padding:.42rem .75rem; background:var(--light); border:1px solid var(--line); border-radius:.53rem; text-align:start; font-weight:700; transition:background .14s,color .14s,border-color .14s,transform .14s,opacity .14s; }
 .answer:hover { border-color:var(--wine); }
 .answer[aria-pressed="true"],.answer:active { background:#63273e; color:var(--paper); border-color:#63273e; }
-.answer-locked .answer[aria-pressed="true"] { transform:translateX(-.2rem); }
+.answer-locked .answer[aria-pressed="true"] { transform:translateX(-.2rem); animation:answer-bloom .45s ease-out both; }
+@keyframes answer-bloom { 0% { box-shadow:0 0 0 0 #b8796650; } 65% { box-shadow:0 0 0 .3rem #b8796600; } }
 .answer-locked .answer[aria-pressed="false"] { opacity:.58; }
 .answer-check { display:none; inline-size:1.56rem; block-size:1.56rem; flex:0 0 auto; place-items:center; border-radius:50%; background:#ffda98; color:#4b1728; }
 .answer[aria-pressed="true"] .answer-dots { display:none; }
@@ -100,6 +101,8 @@ h1:focus { outline:none; }
 @keyframes knot-in { from { transform:scale(0); } 65% { transform:scale(1.5); } }
 .result-header { position:relative; isolation:isolate; overflow:hidden; background:radial-gradient(ellipse at 9% 5%,#783c51 0,transparent 63%),#481b30; color:#fff2da; padding:clamp(1.12rem,4vw,2.45rem); margin-block-end:1rem; border-radius:1.4rem .45rem; }
 .result-header h1 { font-size:clamp(2.32rem,8vw,4.5rem); animation:stage-rise .5s both; }
+.result-topper { display:flex; align-items:center; justify-content:space-between; gap:.5rem; min-block-size:3.7rem; }
+.result-art { inline-size:clamp(5rem,28vw,10.5rem); display:block; height:auto; flex:0 0 auto; margin-inline-end:-.24rem; }
 .result-label { color:#fbd493; font-weight:700; margin-block-end:.38rem; font-size:.92rem; }
 .result-context { color:#ffe9cd; max-inline-size:35rem; margin-block-start:.57rem; }
 .result-evidence { color:#fbdcae; opacity:.98; margin-block-start:.25rem; font-size:.85rem; }
@@ -134,8 +137,14 @@ h1:focus { outline:none; }
 .field-reason ul { margin:.3rem 0 0; padding-inline-start:1.25rem; font-size:.88rem; }
 .week-step { padding:.75rem .84rem; background:var(--tint); margin-block:.8rem .35rem; border-radius:.28rem; scroll-margin-block-start:.75rem; }
 .week-step h3 { color:var(--field); margin-block-end:.18rem; }
-.field-extra summary { min-block-size:3rem; cursor:pointer; color:var(--muted); padding-block:.57rem; }
-.field-extra h3 { margin-block-start:.64rem; }
+.career-detail { border-block-start:1px solid var(--line); margin-block-start:.85rem; padding-block-start:.82rem; }
+.career-detail h3 { font-size:1.04rem; color:var(--field); }
+.career-hint { margin-block-start:.18rem; color:var(--muted); font-size:.82rem; }
+.career-jobs,.career-skills { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr)); gap:.36rem .52rem; font-size:.86rem; margin-block:.55rem .75rem; }
+.career-jobs { padding-inline-start:1.22rem; }
+.career-jobs li::marker { color:var(--field); }
+.career-skills { list-style:none; padding:0; }
+.career-skills li { padding:.35rem .42rem; color:var(--field); font-weight:700; line-height:1.43; background:var(--tint); border-radius:.38rem; }
 .chart-section,.sharing { margin-block-start:1.25rem; }
 .chart-section { padding:clamp(1rem,3vw,1.5rem); background:var(--milk); border-radius:1rem .25rem; }
 .chart-section h2,.sharing h2 { color:var(--wine); font-size:1.45rem; margin-block-end:.25rem; }
@@ -145,8 +154,8 @@ h1:focus { outline:none; }
 .chart-line { block-size:.39rem; background:#fff; border-radius:1rem; margin-block-start:.19rem; overflow:hidden; }
 .chart-line i { display:block; block-size:100%; width:var(--filled); background:var(--field); border-radius:inherit; }
 .sharing { display:grid; justify-items:center; align-content:start; gap:.6rem; padding:1.08rem; border:1px solid #dfc4a5; background:#f8e9d2; border-radius:1.2rem .32rem; scroll-margin-block-start:.55rem; }
-.share-image { display:block; width:min(100%,17rem); height:auto; border-radius:.68rem; box-shadow:0 .65rem 1.5rem #50263732; }
-.share-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+.share-image { display:block; width:min(100%,23rem); height:auto; border-radius:.68rem; box-shadow:0 .65rem 1.5rem #50263732; }
+.share-actions { display:flex; justify-content:center; flex-wrap:wrap; gap:.5rem; }
 .result-footer { display:grid; justify-items:start; gap:.65rem; margin-block-start:1.2rem; }
 .booth { background:var(--wine); color:var(--paper); }
 .booth-layout { min-block-size:100svh; max-inline-size:108rem; margin:auto; padding:clamp(1rem,3.25vw,3rem); display:grid; align-items:center; grid-template-columns:1fr .95fr; gap:clamp(1rem,3vw,3rem); }
@@ -193,6 +202,7 @@ h1:focus { outline:none; }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { animation:none !important; transition:none !important; }
 }
+.motion-paused *, .motion-paused *::before, .motion-paused *::after { animation:none !important; transition:none !important; }
 @page { size:auto; margin:9mm; }
 @media print {
   :root,.poster { background:#fff; }
