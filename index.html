@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#48020c">
   <title>أمسك الخيط · البوث</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
   <script defer src="data.js?v=7"></script>
   <script defer src="assets/qrcode.js"></script>
-  <script defer src="booth.js"></script>
+  <script defer src="booth.js?v=2"></script>
   <script defer src="mascots.js?v=7"></script>
-  <script defer src="campus-show.js?v=8"></script>
+  <script defer src="campus-show.js?v=9"></script>
 </head>
 <body class="booth">
   <main class="booth-layout">
@@ -31,9 +31,11 @@
         <canvas id="qr" role="img" hidden></canvas>
         <canvas id="campus-canvas" width="720" height="650" aria-hidden="true"></canvas>
       </div>
-      <button class="show-toggle" type="button" aria-controls="campus-canvas" hidden>ثبّت الرمز للمسح</button>
       <p id="qr-status" role="status" hidden></p>
-      <a class="game-url" href="play.html" dir="ltr" hidden></a>
+      <div class="scan-actions">
+        <button class="show-toggle" type="button" aria-controls="campus-canvas" hidden>ثبّت الرمز للمسح</button>
+        <a class="game-url" href="play.html" hidden></a>
+      </div>
     </section>
   </main>
   <noscript>فعّل جافاسكريبت في متصفّحك لعرض هذه الصفحة.</noscript>

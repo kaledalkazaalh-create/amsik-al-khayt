@@ -183,6 +183,7 @@ h1:focus { outline:none; }
 .booth-nav a { min-block-size:2.75rem; padding-block:.45rem; }
 .scan-area { display:grid; justify-items:center; text-align:center; min-inline-size:0; gap:.55rem; }
 .scan-area h2 { font-size:clamp(1.2rem,2.7vw,2.75rem); }
+.scan-actions { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:.45rem .9rem; min-inline-size:0; }
 #qr { display:block; inline-size:min(100%,66svh); height:auto; aspect-ratio:1; background:#fff; image-rendering:pixelated; }
 .campus-show #qr { position:absolute; top:17.23076923%; left:16.66666667%; inline-size:66.66666667%; }
 #qr-status { background:var(--light); color:var(--ink); padding:1rem; max-inline-size:18rem; }
@@ -193,7 +194,7 @@ h1:focus { outline:none; }
 .display .booth-intro h1 { margin:0; text-align:center; font-size:clamp(2.15rem,4vw,4rem); }
 .display .scan-area { grid-area:1 / 2; gap:.32rem; width:100%; }
 .display .scan-area h2 { font-size:clamp(1.25rem,2.15vw,2rem); }
-.display .game-url { font-size:clamp(1.45rem,1.85vw,2rem); }
+.display .game-url { font-family:inherit; font-size:1rem; }
 .display.cursor-idle,.display.cursor-idle * { cursor:none; }
 .poster { background:#fff; color:#120f08; }
 .poster-layout { max-inline-size:45rem; margin:auto; padding:1.2rem; text-align:center; display:grid; justify-items:center; }

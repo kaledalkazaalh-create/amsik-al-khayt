@@ -14,7 +14,8 @@
   const height = canvas.height;
   // Matches the QR canvas placement in styles.css.
   const code = {x:120, y:112, size:480};
-  const floor = 188;
+  const platformTop = 33;
+  const floor = 101;
   const duration = 22;
   const ratio = Math.max(1, Math.min(devicePixelRatio || 1, 2));
   canvas.width = width * ratio;
@@ -45,9 +46,9 @@
     speed:310 + seed(i, 5) * 690, length:8 + seed(i, 6) * 36, depth:seed(i, 7)
   }));
   const cast = [
-    {person:hero, start:292, end:334, delay:0},
-    {person:rival, start:346, end:389, delay:.35},
-    {person:driver, start:400, end:446, delay:.7}
+    {person:hero, start:195, end:366, delay:0},
+    {person:rival, start:251, end:422, delay:.35},
+    {person:driver, start:307, end:478, delay:.7}
   ];
 
   function background(storm) {
@@ -61,7 +62,7 @@
     glow.addColorStop(0, "rgba(247,175,128,.44)");
     glow.addColorStop(1, "rgba(247,175,128,0)");
     rect(0, 0, width, height, 0, glow, null);
-    oval(548, 70, 19, 19, "#f3d2aa", null);
+    oval(644, 76, 19, 19, "#f3d2aa", null);
 
     buildings.forEach(({x,w,h}, i) => {
       const y = 593 - h;
@@ -78,7 +79,10 @@
     street.addColorStop(1, "#282233");
     rect(0, 592, width, height - 592, 0, street, null);
     if (storm) rect(0, 0, width, height, 0, `rgba(20,39,62,${storm * .61})`, null);
-    rect(code.x - 5, code.y - 5, code.size + 10, code.size + 10, 3, "#dfc0a2", null);
+    const platformHeight = code.y - platformTop;
+    rect(code.x - 5, platformTop - 5, code.size + 10, code.size + platformHeight + 10, 3, "#dfc0a2", null);
+    rect(code.x, platformTop, code.size, platformHeight, 0, "#fff", null);
+    path([[code.x + 18, floor + 1], [code.x + code.size - 18, floor + 1]], "#ede2d8", 1.4);
     // The original, scannable QR is directly below this transparent opening.
     ctx.clearRect(code.x, code.y, code.size, code.size);
   }
@@ -88,7 +92,7 @@
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, width, height);
-    ctx.rect(code.x, code.y, code.size, code.size);
+    ctx.rect(code.x, platformTop, code.size, code.size + code.y - platformTop);
     ctx.clip("evenodd");
     for (const drop of drops) {
       const distance = t * drop.speed;
@@ -127,10 +131,9 @@
     const visibility = ease(t / .55) * (1 - ease((t - 16.6) / 1.0));
     if (!visibility) return;
     ctx.save();
-    // Keep all finder patterns and the QR quiet zone at the sides clear.
+    // The team walks on the white extension above the QR, outside its quiet zone.
     ctx.beginPath();
     ctx.rect(0, 0, width, code.y);
-    ctx.rect(255, code.y, 235, 93);
     ctx.clip();
     ctx.globalAlpha = visibility;
     const walk = ease((t - 4) / 5.4);
@@ -139,13 +142,13 @@
     for (const [i, member] of cast.entries()) {
       const landed = ease((t - member.delay) / 2.65);
       const x = mix(member.start, member.end, walk) + (i === 0 ? 9 : i === 2 ? -10 : 7) * gather;
-      const y = mix(-24, floor, landed) + (i === 1 ? 7 * fall : 4 * gather);
+      const y = mix(-24, floor, landed) + (i === 1 ? 3 * fall : 3 * gather);
       if (landed < 1 && y > 31) path([[x, 0], [x, y - 31]], "#d2bea9", 1.8);
       student(member.person, x, y, {
         scale:.56, masked:true, tactical:true, arm:mix(17, -20, gather),
         flip:i === 2 && gather > .4 ? -1 : 1,
         bob:Math.sin(t * 9 + i) * 2.2 * Math.sin(Math.PI * walk),
-        run:walk * 19, tilt:i === 1 ? fall * 1.4 : gather * (i === 0 ? .16 : -.16),
+        run:walk * 42, tilt:i === 1 ? fall * 1.4 : gather * (i === 0 ? .16 : -.16),
         emotion:fall > .8 ? "sad" : "happy"
       });
       if (gather < .7) prop(x + 17, y - 31, i === 1 ? fall : 0);

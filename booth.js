@@ -17,7 +17,8 @@
     game = new URL(GAME_URL || (local ? LOCAL_PREVIEW_URL : "play.html"), location.href);
     if (!["https:","http:"].includes(game.protocol)) throw new Error("Unsupported game URL");
     link.href = game.href;
-    link.textContent = game.href;
+    link.textContent = display ? labels.try : game.href;
+    link.dir = display ? "auto" : "ltr";
     link.hidden = false;
     const qr = qrcode(0, "Q");
     qr.addData(game.href);
