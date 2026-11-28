@@ -178,9 +178,9 @@
     const activity = byId.get(ids[index]);
     const heading = node("h1","request-heading");
     heading.append(
-      node("span","request-speaker",activity.speaker+":"),
-      " ",
-      node("span","request-task","«"+activity.text+"»")
+      node("span","request-speaker","طلب من "+activity.speaker),
+      node("span","request-input","معك: "+activity.input),
+      node("span","request-task","المطلوب: "+activity.text)
     );
     heading.id = "activity-title";
     heading.setAttribute("aria-describedby","activity-prompt");
