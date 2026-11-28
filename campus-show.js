@@ -86,7 +86,7 @@
     ctx.font = "bold 23px Tahoma, sans-serif";
     ctx.textAlign = "center";
     ctx.fillStyle = "#fff6e7";
-    ctx.fillText("السنافر",79,259);
+    ctx.fillText("أمسك الخيط",79,259);
     path([[32,273],[32,285]],"#713d52",4);
     path([[124,273],[124,285]],"#713d52",4);
   }
@@ -320,5 +320,5 @@
     }
   });
   frame(position);
-  setPlaying(!reduced.matches);
+  setPlaying(!reduced.matches && !document.body.classList.contains("display"));
 })();

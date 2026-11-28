@@ -1,13 +1,13 @@
 "use strict";
 
 (() => {
-  const {fields, answers, title, institution, cardInstitution, copy} = ThreadData;
+  const {fields, answers, title, institution, cardInstitution, cardUrl, copy} = ThreadData;
   const {items, byId, order, validOrder, validRating, score} = ThreadScoring;
   const game = document.querySelector("#game");
   const announcement = document.querySelector("#announcement");
   const numbers = new Intl.NumberFormat("ar-JO", {maximumFractionDigits:1});
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  const key = "amsik-al-khayt:fields:v1";
+  const key = "amsik-al-khayt:fields:v2";
   const ns = "http://www.w3.org/2000/svg";
   let session = restore();
   let advancing = false;
@@ -138,7 +138,7 @@
     const arrow = node("span","start-arrow","←");
     arrow.setAttribute("aria-hidden","true");
     start.append(arrow);
-    actions.append(start,node("p","duration",`${numbers.format(items.length)} نشاطًا قصيرًا`));
+    actions.append(start,node("p","duration",copy.duration));
     if (session?.ratings.length) actions.append(button(copy.restart,"text-button light-link",reset));
     screen.append(lead,visual,actions);
     show(screen,heading,focus);
@@ -151,11 +151,13 @@
     bar.setAttribute("aria-valuemin","0");
     bar.setAttribute("aria-valuemax",items.length);
     bar.setAttribute("aria-valuenow",index);
-    const width = items.length / fields.length;
+    const completed = session.ids.slice(0,index).map(id => byId.get(id)).filter(item => !item.checkOf);
     fields.forEach((field,i) => {
       const segment = node("span","segment");
+      segment.setAttribute("aria-hidden","true");
       const filled = node("i");
-      filled.style.setProperty("--filled",Math.max(0,Math.min(1,(index-i*width)/width))*100+"%");
+      const count = completed.filter(item => item.field === field.id).length;
+      filled.style.setProperty("--filled",Math.min(1,count/4)*100+"%");
       filled.style.setProperty("--color",field.color);
       segment.append(filled);
       bar.append(segment);
@@ -236,8 +238,21 @@
     setTimeout(() => {
       advancing = false;
       if (session.index === items.length) reveal();
+      else if (copy.milestones[session.index]) milestoneScreen();
       else quiz();
     },motionOn() ? 560 : 0);
+  }
+
+  function milestoneScreen() {
+    const part = session.index / 10;
+    const screen = node("section","milestone-screen");
+    const art = threads("milestone-threads");
+    const heading = node("h1","",copy.milestones[session.index]);
+    const description = node("p","",`${numbers.format(session.index)} من ${numbers.format(items.length)} نشاطًا خلفك. أكمل الجزء ${numbers.format(part+1)}.`);
+    const next = button(copy.continue,"button button-wine",() => quiz());
+    screen.append(art,heading,description,next);
+    show(screen,heading);
+    announcement.textContent = heading.textContent;
   }
 
   function reveal() {
@@ -249,7 +264,7 @@
     const heading = node("h1","",copy.reveal);
     screen.append(threads("reveal-threads"),heading);
     show(screen,heading);
-    setTimeout(showResult,1290);
+    setTimeout(showResult,2200);
   }
 
   function card(field) {
@@ -265,9 +280,12 @@
     banner.append(identity,illustration);
     const detail = node("div","field-detail");
     detail.append(node("p","field-why",field.why));
+    const work = node("section","work-example");
+    work.append(node("h3","",copy.work),node("p","",field.example));
+    detail.append(work);
     if (field.reasons.length) {
       const reason = node("div","field-reason");
-      reason.append(node("h3","",copy.reason));
+      reason.append(node("h3","",copy.reasonHeading));
       const list = node("ul");
       field.reasons.forEach(item => list.append(node("li","",item.short)));
       reason.append(list);
@@ -312,13 +330,13 @@
 
   function shareCard(report) {
     const canvas = document.createElement("canvas");
-    canvas.width = 1440;
-    canvas.height = 2560;
+    canvas.width = 1080;
+    canvas.height = 1920;
     const ctx = canvas.getContext("2d");
     const font = '"IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
     const cream = "#fff2dc";
     const gold = "#ffda98";
-    const plum = "#4b1728";
+    const plum = "#120f08";
     const wine = "#6a2639";
     const {rect,oval,path} = ThreadMascots(ctx);
 
@@ -359,64 +377,70 @@
     }
 
     function career(field,y,label) {
-      rect(76,y,1288,914,42,cream);
-      rect(107,y+31,1226,166,31,field.tint);
-      oval(201,y+114,61,61,cream);
-      fieldIcon(field,163,y+76);
-      line(label,1284,y+79,33,field.color,"bold");
-      line(field.name,1284,y+146,58,field.color,"bold",963);
+      rect(48,y,984,660,30,cream);
+      rect(68,y+18,944,98,22,field.tint);
+      oval(125,y+67,34,34,cream);
+      fieldIcon(field,104,y+46);
+      line(label,970,y+47,24,field.color,"bold",720);
+      line(field.name,970,y+91,39,field.color,"bold",720);
+      wrap(field.why,970,y+157,850,28,plum,"bold",37);
+      wrap(field.example,970,y+198,850,26,plum,"normal",35);
 
-      line(copy.jobs,1284,y+262,45,plum,"bold");
-      field.jobs.forEach((job,i) => {
-        const column = i%2;
-        const row = Math.floor(i/2);
-        const right = column ? 687 : 1284;
-        const yy = y+330+row*61;
-        oval(right-8,yy-11,6,6,field.color);
-        line(job,right-31,yy,39,plum,"normal",506);
+      line(copy.jobs,970,y+258,34,field.color,"bold");
+      field.jobs.slice(0,6).forEach((job,i) => {
+        const column=i%2;
+        const row=Math.floor(i/2);
+        const right=column ? 530 : 970;
+        const yy=y+306+row*46;
+        oval(right-6,yy-9,5,5,field.color,null);
+        line(job,right-22,yy,38,plum,"normal",400);
       });
-      path([[125,y+486],[1308,y+486]],"#d7b799",2);
-      line(copy.skills,1284,y+552,45,plum,"bold");
+      path([[88,y+440],[992,y+440]],"#d7b799",2);
+      line(copy.skills,970,y+482,34,field.color,"bold");
       field.skills.forEach((skill,i) => {
-        const column = i%2;
-        const row = Math.floor(i/2);
-        const left = column ? 127 : 722;
-        const top = y+577+row*67;
-        rect(left,top,586,54,13,field.tint);
-        line(skill,left+562,top+37,35,field.color,"bold",535);
+        const column=i%2;
+        const row=Math.floor(i/2);
+        const left=column ? 88 : 550;
+        const top=y+496+row*45;
+        rect(left,top,442,40,10,field.tint,null);
+        line(skill,left+420,top+29,32,field.color,"bold",400);
       });
-
-      rect(126,y+725,1188,153,22,"#f4dfb9");
-      line(copy.step,1286,y+773,35,wine,"bold");
-      wrap(field.tinyStep,1286,y+820,1109,41,plum,"bold",45);
+      rect(88,y+594,904,54,13,"#f4dfb9",null);
+      wrap(field.tinyStep,970,y+627,850,31,wine,"bold",34);
     }
 
-    const fill = ctx.createLinearGradient(0,0,1440,2560);
-    fill.addColorStop(0,"#351020");
-    fill.addColorStop(.62,plum);
-    fill.addColorStop(1,"#34111f");
-    rect(0,0,1440,2560,0,fill);
-    rect(39,39,1362,2482,50,"#ffffff00","#a78268");
+    const fill=ctx.createLinearGradient(0,0,0,1920);
+    fill.addColorStop(0,"#48020c"); fill.addColorStop(1,"#261015");
+    rect(0,0,1080,1920,0,fill);
+    rect(28,28,1024,1864,34,"#ffffff00","#a78268");
     ctx.save();
-    ctx.translate(50,47);
-    ctx.scale(.68,.72);
-    ThreadArt.illustration(ctx,report.suggestions[1].tint,report.suggestions);
+    ctx.globalAlpha=.68;
+    ctx.lineWidth=3;
+    fields.forEach((strand,i)=>{
+      ctx.beginPath();
+      ctx.moveTo(74,63+i*9);
+      ctx.bezierCurveTo(115,34+i*7,151,139-i*5,183,94+i*3);
+      ctx.strokeStyle=strand.tint;
+      ctx.stroke();
+    });
     ctx.restore();
-    line(title,1325,165,115,cream,"bold",900);
-    const headline = report.status ? "مجالان لتجربتهما" : report.suggestions[0].headline;
-    line(headline,1325,264,66,gold,"bold",865);
-    path([[107,317],[1333,317]],"#af8066",2.5);
+    oval(126,104,10,10,gold,cream);
+    line(title,982,112,64,cream,"bold",820);
+    const headline=report.status ? copy.result : report.suggestions[0].headline;
+    line(headline,982,176,38,gold,"bold",820);
+    path([[82,206],[998,206]],"#af8066",2);
 
     report.suggestions.forEach((field,i) => {
       const label = report.status ? copy.compare : i===0 ? copy.primary : copy.secondary;
-      career(field,360+i*954,label);
+      career(field,230+i*672,label);
     });
 
-    line(copy.jobsHint,1328,2311,37,cream);
-    line(copy.notes,1328,2370,36,cream);
-    path([[109,2411],[1333,2411]],"#ad8066",2.5);
-    line(cardInstitution,1328,2475,46,gold,"bold");
-    ThreadArt.sparkle(ctx,166,2453,18,gold);
+    wrap(copy.notes,982,1605,900,23,cream,"normal",31);
+    if (report.inconsistent) wrap(copy.inconsistent,982,1658,900,22,gold,"normal",28);
+    line(cardUrl,982,1702,20,cream,"normal",900);
+    path([[82,1740],[998,1740]],"#ad8066",2);
+    line(cardInstitution,982,1802,34,gold,"bold",900);
+    line(copy.disclaimer,982,1854,20,cream,"normal",900);
     return canvas;
   }
 
@@ -428,8 +452,8 @@
     const heading = node("h2","",copy.shareHeading);
     const image = node("img","share-image");
     image.alt = `${title} · ${report.suggestions.map(item => item.name).join("، ")}`;
-    image.width = 1440;
-    image.height = 2560;
+    image.width = 1080;
+    image.height = 1920;
     image.hidden = true;
     const actions = node("div","share-actions");
     const feedback = node("p","muted");
@@ -443,7 +467,7 @@
         shareUrl = URL.createObjectURL(blob);
         image.src = shareUrl;
         image.hidden = false;
-        const file = new File([blob],"amsik-al-khayt.png",{type:"image/png"});
+      const file = new File([blob],"amsik-al-khayt.png",{type:"image/png"});
         const download = node("a","button button-wine",copy.save);
         download.href = shareUrl;
         download.download = file.name;
@@ -494,8 +518,9 @@
     if (report.status) header.append(node("p","result-context",copy[report.status]));
     else {
       header.append(node("p","result-context",first.tagline+" · "+first.why));
-      if (first.reasons.length) header.append(node("p","result-evidence",copy.reason+" "+first.reasons[0].short+"."));
+      if (first.reasons.length) header.append(node("p","result-evidence",`${copy.reason}: ${first.reasons[0].short}.`));
     }
+    if (report.inconsistent) header.append(node("p","result-context inconsistent-note",copy.inconsistent));
     const summary = node("div","result-pair");
     report.suggestions.forEach((field,i) => {
       const item = quickLink("",`field-${field.id}`,"result-ticket");
@@ -515,9 +540,9 @@
     report.suggestions.forEach(field => cards.append(card(field)));
     const foot = node("footer","result-footer");
     foot.append(node("p","muted",copy.note),button(copy.restart,"button button-outline",reset));
-    screen.append(header,cards,sharing(report),chart(report.scores),foot);
+    screen.append(header,cards,chart(report.scores),sharing(report),foot);
     show(screen,heading);
-    announcement.textContent = copy.resultLabel;
+    announcement.textContent = report.inconsistent ? `${copy.resultLabel}. ${copy.inconsistent}` : copy.resultLabel;
   }
 
   welcome();
