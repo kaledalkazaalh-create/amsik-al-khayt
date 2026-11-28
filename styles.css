@@ -185,17 +185,16 @@ h1:focus { outline:none; }
 #qr { display:block; inline-size:min(100%,66svh); height:auto; aspect-ratio:1; background:#fff; image-rendering:pixelated; }
 #qr-status { background:var(--light); color:var(--ink); padding:1rem; max-inline-size:18rem; }
 .game-url { font-family:Arial,sans-serif; max-inline-size:100%; overflow-wrap:anywhere; font-weight:700; line-height:1.25; }
-.display { --display-qr:min(85vmin,calc(100svh - 8.75rem),55vw); }
-.display .booth-layout { grid-template-columns:minmax(0,1fr) minmax(0,var(--display-qr)); padding-block:.45rem; padding-inline:clamp(.78rem,2.65vw,2.5rem); }
-.display .booth-layout { display:flex; flex-direction:column; justify-content:center; gap:.12rem; }
-.display .booth-intro { display:contents; }
-.display .booth-intro .masthead,.display .booth-hook,.display .campus-show,.display .booth-nav { display:none; }
-.display .booth-intro h1 { order:0; margin:0; text-align:center; font-size:clamp(1.5rem,4.3vh,3rem); }
-.display .scan-area { order:1; gap:.15rem; width:100%; }
-.display .scan-area h2 { font-size:clamp(1.25rem,4.3vh,3rem); }
+.display { --display-qr:min(78vmin,calc(100svh - 10rem),45vw); }
+.display .booth-layout { min-block-size:100svh; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,var(--display-qr)); align-items:center; gap:clamp(1rem,2.4vw,2.4rem); padding-block:.45rem; padding-inline:clamp(.78rem,2.65vw,2.5rem); }
+.display .booth-intro { display:grid; grid-area:1 / 1; align-content:center; gap:.25rem; }
+.display .booth-hook,.display .booth-nav { display:none; }
+.display .booth-intro h1 { margin:0; text-align:center; font-size:clamp(2.15rem,4vw,4rem); }
+.display .campus-show { display:block; width:100%; margin:.45rem 0 0; }
+.display .scan-area { grid-area:1 / 2; gap:.32rem; width:100%; }
+.display .scan-area h2 { font-size:clamp(1.25rem,2.15vw,2rem); }
 .display #qr { inline-size:var(--display-qr); }
-.display .game-url { font-size:clamp(1.75rem,2.1vw,2.5rem); }
-.display * { animation:none !important; transition:none !important; }
+.display .game-url { font-size:clamp(1.45rem,1.85vw,2rem); }
 .display.cursor-idle,.display.cursor-idle * { cursor:none; }
 .poster { background:#fff; color:#120f08; }
 .poster-layout { max-inline-size:45rem; margin:auto; padding:1.2rem; text-align:center; display:grid; justify-items:center; }
@@ -215,6 +214,14 @@ h1:focus { outline:none; }
   .booth .booth-layout { grid-template-columns:1fr; align-content:start; }
   .booth #qr { inline-size:min(100%,32rem); }
   .display .game-url { font-size:.93rem; }
+  .display { --display-qr:min(78vmin,calc(100svh - 18rem),92vw); }
+  .display .booth-layout { display:flex; flex-direction:column; justify-content:center; gap:.15rem; }
+  .display .booth-intro { width:100%; grid-template-columns:1fr minmax(7rem,34vw); align-items:center; }
+  .display .booth-intro .masthead,.display .booth-hook,.display .booth-nav { display:none; }
+  .display .booth-intro h1 { font-size:clamp(1.55rem,8vw,2.25rem); }
+  .display .campus-show { grid-column:2; grid-row:1; margin:0; }
+  .display .scan-area { width:100%; }
+  .display .scan-area h2 { font-size:1.15rem; }
 }
 @media (max-width:24rem) {
   .game-shell { padding-inline:.75rem; }
